@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ClinicQ Live Health Monitor</title>
+    <meta name="description"
+        content="Real-time patient health monitoring dashboard with live ECG, heart rate, SpO2, and temperature tracking">
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Socket.io & Chart.js -->
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        :root {
+            --primary: #6366f1;
+            --primary-dark: #4f46e5;
+            --success: #10b981;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --bg-dark: #0f172a;
+            --bg-card: #1e293b;
+            --bg-card-light: #334155;
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --ecg-line: #22d3ee;
+            --shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            --glass: rgba(255, 255, 255, 0.05);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, var(--bg-dark) 0%, #1a1a2e 50%, #16213e 100%);
+            min-height: 100vh;
+            color: var(--text-primary);
+            overflow-x: hidden;
+        }
+
+        /* Animated Background */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background:
+                radial-gradient(ellipse at 20% 20%, rgba(99, 102, 241, 0.15) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 80%, rgba(34, 211, 238, 0.1) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* Header */
+        header {
+            background: var(--glass);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 1rem 2rem;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 1.75rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #fff 0%, var(--ecg-line) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .logo span {
+            color: var(--primary);
+            -webkit-text-fill-color: var(--primary);
+        }
+
+        .status-badge {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            background: var(--glass);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            border-radius: 50px;
+            font-size: 0.875rem;
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            background: var(--success);
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        .status-dot.disconnected {
+            background: var(--danger);
+            animation: none;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+
+            50% {
+                opacity: 0.5;
+                transform: scale(1.2);
+            }
+        }
+
+        /* Main Container */
+        .dashboard-container {
+            max-width: 1400px;
+            margin: 2rem auto;
+            padding: 0 1.5rem;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Vitals Grid */
+        .vitals-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .vital-card {
+            background: var(--bg-card);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 24px;
+            padding: 2rem;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .vital-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            border-radius: 24px 24px 0 0;
+        }
+
+        .vital-card.bpm::before {
+            background: linear-gradient(90deg, #ef4444, #f97316);
+        }
+
+        .vital-card.spo2::before {
+            background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+        }
+
+        .vital-card.temp::before {
+            background: linear-gradient(90deg, #10b981, #22d3ee);
+        }
+
+        .vital-card:hover {
+            transform: translateY(-5px);
+            border-color: rgba(255, 255, 255, 0.2);
+            box-shadow: var(--shadow);
+        }
+
+        .vital-icon {
+            width: 56px;
+            height: 56px;
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.75rem;
+            margin-bottom: 1rem;
+        }
+
+        .vital-card.bpm .vital-icon {
+            background: rgba(239, 68, 68, 0.2);
+        }
+
+        .vital-card.spo2 .vital-icon {
+            background: rgba(59, 130, 246, 0.2);
+        }
+
+        .vital-card.temp .vital-icon {
+            background: rgba(16, 185, 129, 0.2);
+        }
+
+        .vital-label {
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            margin-bottom: 0.5rem;
+        }
+
+        .vital-value {
+            font-size: 3.5rem;
+            font-weight: 700;
+            line-height: 1;
+            margin-bottom: 0.5rem;
+        }
+
+        .vital-card.bpm .vital-value {
+            color: #f87171;
+        }
+
+        .vital-card.spo2 .vital-value {
+            color: #60a5fa;
+        }
+
+        .vital-card.temp .vital-value {
+            color: #34d399;
+        }
+
+        .vital-unit {
+            font-size: 1.25rem;
+            font-weight: 400;
+            color: var(--text-secondary);
+        }
+
+        .vital-status {
+            font-size: 0.875rem;
+            color: var(--success);
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+        }
+
+        /* ECG Container */
+        .ecg-container {
+            background: var(--bg-card);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 24px;
+            padding: 2rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .ecg-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .ecg-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .ecg-title::before {
+            content: '';
+            width: 12px;
+            height: 12px;
+            background: var(--ecg-line);
+            border-radius: 50%;
+            animation: pulse 1s infinite;
+        }
+
+        .ecg-meta {
+            display: flex;
+            gap: 1.5rem;
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+        }
+
+        .ecg-chart-wrapper {
+            height: 280px;
+            position: relative;
+        }
+
+        #ecgChart {
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Grid lines overlay */
+        .ecg-chart-wrapper::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background:
+                linear-gradient(90deg, rgba(34, 211, 238, 0.03) 1px, transparent 1px),
+                linear-gradient(rgba(34, 211, 238, 0.03) 1px, transparent 1px);
+            background-size: 50px 50px;
+            pointer-events: none;
+        }
+
+        /* Footer */
+        footer {
+            text-align: center;
+            padding: 2rem;
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .vitals-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .vital-value {
+                font-size: 2.5rem;
+            }
+
+            .header-content {
+                flex-direction: column;
+                gap: 1rem;
+            }
+        }
+
+        /* Connection lost overlay */
+        .connection-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.95);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+
+        .connection-overlay.active {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .connection-overlay h2 {
+            font-size: 1.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .connection-overlay p {
+            color: var(--text-secondary);
+        }
+
+        .loading-spinner {
+            width: 48px;
+            height: 48px;
+            border: 4px solid var(--bg-card-light);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 1.5rem;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Connection Overlay -->
+    <div class="connection-overlay" id="connectionOverlay">
+        <div class="loading-spinner"></div>
+        <h2>Connecting to Server...</h2>
+        <p>Waiting for device data</p>
+    </div>
+
+    <header>
+        <div class="header-content">
+            <h1 class="logo">Clinic<span>Q</span> Live Monitor</h1>
+            <div class="status-badge">
+                <div class="status-dot" id="statusDot"></div>
+                <span id="statusText">Connected</span>
+            </div>
+        </div>
+    </header>
+
+    <main class="dashboard-container">
+        <div class="vitals-grid">
+            <!-- Heart Rate Card -->
+            <div class="vital-card bpm">
+                <div class="vital-icon">❤️</div>
+                <div class="vital-label">Heart Rate</div>
+                <div class="vital-value">
+                    <span id="bpm">--</span>
+                    <span class="vital-unit">BPM</span>
+                </div>
+                <div class="vital-status">
+                    <span>●</span> Normal Range
+                </div>
+            </div>
+
+            <!-- SpO2 Card -->
+            <div class="vital-card spo2">
+                <div class="vital-icon">💧</div>
+                <div class="vital-label">Oxygen Level</div>
+                <div class="vital-value">
+                    <span id="spo2">--</span>
+                    <span class="vital-unit">%</span>
+                </div>
+                <div class="vital-status">
+                    <span>●</span> Optimal
+                </div>
+            </div>
+
+            <!-- Temperature Card -->
+            <div class="vital-card temp">
+                <div class="vital-icon">🌡️</div>
+                <div class="vital-label">Body Temperature</div>
+                <div class="vital-value">
+                    <span id="temp">--</span>
+                    <span class="vital-unit">°C</span>
+                </div>
+                <div class="vital-status">
+                    <span>●</span> Normal
+                </div>
+            </div>
+        </div>
+
+        <!-- ECG Chart -->
+        <div class="ecg-container">
+            <div class="ecg-header">
+                <h2 class="ecg-title">Live ECG Waveform</h2>
+                <div class="ecg-meta">
+                    <span>Lead II</span>
+                    <span>25mm/s</span>
+                    <span>10mm/mV</span>
+                </div>
+            </div>
+            <div class="ecg-chart-wrapper">
+                <canvas id="ecgChart"></canvas>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <p>ClinicQ Health Monitor © 2026 • Real-time Patient Monitoring System</p>
+    </footer>
+
+    <script>
+        // ========== SOCKET.IO CONNECTION ==========
+        const socket = io();
+        const connectionOverlay = document.getElementById('connectionOverlay');
+        const statusDot = document.getElementById('statusDot');
+        const statusText = document.getElementById('statusText');
+
+        let isConnected = false;
+        let hasReceivedData = false;
+
+        socket.on('connect', () => {
+            console.log('✅ Connected to server');
+            isConnected = true;
+            updateConnectionStatus();
+        });
+
+        socket.on('disconnect', () => {
+            console.log('❌ Disconnected from server');
+            isConnected = false;
+            hasReceivedData = false;
+            updateConnectionStatus();
+        });
+
+        function updateConnectionStatus() {
+            if (isConnected && hasReceivedData) {
+                connectionOverlay.classList.remove('active');
+                statusDot.classList.remove('disconnected');
+                statusText.textContent = 'Monitoring Active';
+            } else if (isConnected) {
+                connectionOverlay.classList.add('active');
+                connectionOverlay.querySelector('h2').textContent = 'Waiting for Device...';
+                connectionOverlay.querySelector('p').textContent = 'ESP32 not yet transmitting';
+                statusDot.classList.remove('disconnected');
+                statusText.textContent = 'Waiting for Device';
+            } else {
+                connectionOverlay.classList.add('active');
+                connectionOverlay.querySelector('h2').textContent = 'Connection Lost';
+                connectionOverlay.querySelector('p').textContent = 'Attempting to reconnect...';
+                statusDot.classList.add('disconnected');
+                statusText.textContent = 'Disconnected';
+            }
+        }
+
+        // ========== CHART.JS SETUP ==========
+        const ctx = document.getElementById('ecgChart').getContext('2d');
+
+        // Create gradient for ECG line
+        const gradient = ctx.createLinearGradient(0, 0, ctx.canvas.width, 0);
+        gradient.addColorStop(0, '#22d3ee');
+        gradient.addColorStop(0.5, '#06b6d4');
+        gradient.addColorStop(1, '#22d3ee');
+
+        const ecgChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: Array(100).fill(''),
+                datasets: [{
+                    label: 'ECG Signal',
+                    borderColor: gradient,
+                    borderWidth: 2.5,
+                    data: Array(100).fill(0),
+                    tension: 0.3,
+                    pointRadius: 0,
+                    fill: false
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    y: {
+                        min: -150,
+                        max: 150,
+                        grid: {
+                            color: 'rgba(34, 211, 238, 0.1)',
+                            lineWidth: 0.5
+                        },
+                        ticks: {
+                            color: '#64748b',
+                            font: { size: 10 }
+                        }
+                    },
+                    x: {
+                        display: false,
+                        grid: { display: false }
+                    }
+                }
+            }
+        });
+
+        // ========== LISTEN FOR DATA ==========
+        socket.on('vitals_update', (data) => {
+            if (!hasReceivedData && data.bpm > 0) {
+                hasReceivedData = true;
+                updateConnectionStatus();
+            }
+
+            document.getElementById('bpm').innerText = data.bpm || '--';
+            document.getElementById('spo2').innerText = data.spo2 || '--';
+            document.getElementById('temp').innerText = data.temp || '--';
+
+            // Update status indicators based on values
+            updateVitalStatus('bpm', data.bpm);
+            updateVitalStatus('spo2', data.spo2);
+            updateVitalStatus('temp', data.temp);
+        });
+
+        socket.on('ecg_stream', (value) => {
+            ecgChart.data.datasets[0].data.shift();
+            ecgChart.data.datasets[0].data.push(value);
+            ecgChart.update('none');
+        });
+
+        function updateVitalStatus(type, value) {
+            const card = document.querySelector(`.vital-card.${type}`);
+            const statusEl = card.querySelector('.vital-status');
+
+            let status = { text: 'Normal', color: 'var(--success)' };
+
+            if (type === 'bpm') {
+                if (value > 100) status = { text: 'Elevated', color: 'var(--warning)' };
+                else if (value > 120) status = { text: 'High', color: 'var(--danger)' };
+                else if (value < 60) status = { text: 'Low', color: 'var(--warning)' };
+            } else if (type === 'spo2') {
+                if (value < 95) status = { text: 'Low', color: 'var(--warning)' };
+                else if (value < 90) status = { text: 'Critical', color: 'var(--danger)' };
+                else status = { text: 'Optimal', color: 'var(--success)' };
+            } else if (type === 'temp') {
+                if (value > 37.5) status = { text: 'Fever', color: 'var(--warning)' };
+                else if (value > 38.5) status = { text: 'High Fever', color: 'var(--danger)' };
+                else if (value < 36) status = { text: 'Low', color: 'var(--warning)' };
+            }
+
+            statusEl.innerHTML = `<span style="color: ${status.color}">●</span> ${status.text}`;
+        }
+
+        // Initial state
+        updateConnectionStatus();
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,25 @@
+# Ignore node_modules
+node_modules/
+
+# Legacy/Old projects
+ecg_monitor/
+
+# Environment files
+.env
+.env.local
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Arduino build files
+firmware/*.elf
+firmware/*.bin

@@ -1,0 +1,32 @@
+{
+  "name": "clinicq-health-monitor",
+  "version": "1.0.0",
+  "description": "Real-time health monitoring system with ESP32, Socket.io, and live ECG dashboard",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "simulate": "node simulator.js"
+  },
+  "keywords": [
+    "health-monitoring",
+    "esp32",
+    "socket.io",
+    "ecg",
+    "iot",
+    "real-time"
+  ],
+  "author": "ClinicQ Team",
+  "license": "MIT",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.18.2",
+    "socket.io": "^4.7.2"
+  },
+  "devDependencies": {
+    "socket.io-client": "^4.7.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
