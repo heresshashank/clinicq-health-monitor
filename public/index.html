@@ -29,6 +29,7 @@
             --bg-card-light: #334155;
             --text-primary: #f1f5f9;
             --text-secondary: #94a3b8;
+            --text-muted: #64748b;
             --ecg-line: #22d3ee;
             --shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
             --glass: rgba(255, 255, 255, 0.05);
@@ -102,20 +103,45 @@
             gap: 0.5rem;
             padding: 0.5rem 1rem;
             background: var(--glass);
-            border: 1px solid rgba(16, 185, 129, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
             border-radius: 50px;
             font-size: 0.875rem;
+            transition: all 0.3s ease;
+        }
+
+        .status-badge.active {
+            border-color: rgba(16, 185, 129, 0.5);
+            background: rgba(16, 185, 129, 0.1);
+        }
+
+        .status-badge.waiting {
+            border-color: rgba(245, 158, 11, 0.5);
+            background: rgba(245, 158, 11, 0.1);
+        }
+
+        .status-badge.stale {
+            border-color: rgba(239, 68, 68, 0.5);
+            background: rgba(239, 68, 68, 0.1);
         }
 
         .status-dot {
             width: 10px;
             height: 10px;
-            background: var(--success);
             border-radius: 50%;
+            transition: all 0.3s ease;
+        }
+
+        .status-dot.active {
+            background: var(--success);
             animation: pulse 2s infinite;
         }
 
-        .status-dot.disconnected {
+        .status-dot.waiting {
+            background: var(--warning);
+            animation: blink 1s infinite;
+        }
+
+        .status-dot.stale {
             background: var(--danger);
             animation: none;
         }
@@ -131,6 +157,18 @@
             50% {
                 opacity: 0.5;
                 transform: scale(1.2);
+            }
+        }
+
+        @keyframes blink {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.3;
             }
         }
 
@@ -189,6 +227,10 @@
             box-shadow: var(--shadow);
         }
 
+        .vital-card.no-data {
+            opacity: 0.6;
+        }
+
         .vital-icon {
             width: 56px;
             height: 56px;
@@ -240,6 +282,10 @@
             color: #34d399;
         }
 
+        .vital-value.no-data {
+            color: var(--text-muted) !important;
+        }
+
         .vital-unit {
             font-size: 1.25rem;
             font-weight: 400;
@@ -248,7 +294,7 @@
 
         .vital-status {
             font-size: 0.875rem;
-            color: var(--success);
+            color: var(--text-muted);
             display: flex;
             align-items: center;
             gap: 0.25rem;
@@ -279,12 +325,16 @@
             gap: 0.75rem;
         }
 
-        .ecg-title::before {
-            content: '';
+        .ecg-indicator {
             width: 12px;
             height: 12px;
-            background: var(--ecg-line);
             border-radius: 50%;
+            background: var(--text-muted);
+            transition: all 0.3s ease;
+        }
+
+        .ecg-indicator.active {
+            background: var(--ecg-line);
             animation: pulse 1s infinite;
         }
 
@@ -317,6 +367,49 @@
             pointer-events: none;
         }
 
+        /* No Data Overlay */
+        .no-data-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.8);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border-radius: 24px;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+
+        .no-data-overlay.visible {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .no-data-overlay .icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+
+        .no-data-overlay h3 {
+            font-size: 1.25rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .no-data-overlay p {
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+        }
+
+        /* Last Update Info */
+        .last-update {
+            text-align: center;
+            padding: 1rem;
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+        }
+
         /* Footer */
         footer {
             text-align: center;
@@ -340,68 +433,16 @@
                 gap: 1rem;
             }
         }
-
-        /* Connection lost overlay */
-        .connection-overlay {
-            position: fixed;
-            inset: 0;
-            background: rgba(15, 23, 42, 0.95);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            z-index: 1000;
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.3s ease;
-        }
-
-        .connection-overlay.active {
-            opacity: 1;
-            pointer-events: all;
-        }
-
-        .connection-overlay h2 {
-            font-size: 1.5rem;
-            margin-bottom: 0.5rem;
-        }
-
-        .connection-overlay p {
-            color: var(--text-secondary);
-        }
-
-        .loading-spinner {
-            width: 48px;
-            height: 48px;
-            border: 4px solid var(--bg-card-light);
-            border-top-color: var(--primary);
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin-bottom: 1.5rem;
-        }
-
-        @keyframes spin {
-            to {
-                transform: rotate(360deg);
-            }
-        }
     </style>
 </head>
 
 <body>
-    <!-- Connection Overlay -->
-    <div class="connection-overlay" id="connectionOverlay">
-        <div class="loading-spinner"></div>
-        <h2>Connecting to Server...</h2>
-        <p>Waiting for device data</p>
-    </div>
-
     <header>
         <div class="header-content">
             <h1 class="logo">Clinic<span>Q</span> Live Monitor</h1>
-            <div class="status-badge">
-                <div class="status-dot" id="statusDot"></div>
-                <span id="statusText">Connected</span>
+            <div class="status-badge waiting" id="statusBadge">
+                <div class="status-dot waiting" id="statusDot"></div>
+                <span id="statusText">Waiting for Device</span>
             </div>
         </div>
     </header>
@@ -409,41 +450,41 @@
     <main class="dashboard-container">
         <div class="vitals-grid">
             <!-- Heart Rate Card -->
-            <div class="vital-card bpm">
+            <div class="vital-card bpm no-data" id="cardBpm">
                 <div class="vital-icon">❤️</div>
                 <div class="vital-label">Heart Rate</div>
-                <div class="vital-value">
+                <div class="vital-value no-data">
                     <span id="bpm">--</span>
                     <span class="vital-unit">BPM</span>
                 </div>
-                <div class="vital-status">
-                    <span>●</span> Normal Range
+                <div class="vital-status" id="bpmStatus">
+                    <span>○</span> No data
                 </div>
             </div>
 
             <!-- SpO2 Card -->
-            <div class="vital-card spo2">
+            <div class="vital-card spo2 no-data" id="cardSpo2">
                 <div class="vital-icon">💧</div>
                 <div class="vital-label">Oxygen Level</div>
-                <div class="vital-value">
+                <div class="vital-value no-data">
                     <span id="spo2">--</span>
                     <span class="vital-unit">%</span>
                 </div>
-                <div class="vital-status">
-                    <span>●</span> Optimal
+                <div class="vital-status" id="spo2Status">
+                    <span>○</span> No data
                 </div>
             </div>
 
             <!-- Temperature Card -->
-            <div class="vital-card temp">
+            <div class="vital-card temp no-data" id="cardTemp">
                 <div class="vital-icon">🌡️</div>
                 <div class="vital-label">Body Temperature</div>
-                <div class="vital-value">
+                <div class="vital-value no-data">
                     <span id="temp">--</span>
                     <span class="vital-unit">°C</span>
                 </div>
-                <div class="vital-status">
-                    <span>●</span> Normal
+                <div class="vital-status" id="tempStatus">
+                    <span>○</span> No data
                 </div>
             </div>
         </div>
@@ -451,7 +492,10 @@
         <!-- ECG Chart -->
         <div class="ecg-container">
             <div class="ecg-header">
-                <h2 class="ecg-title">Live ECG Waveform</h2>
+                <h2 class="ecg-title">
+                    <span class="ecg-indicator" id="ecgIndicator"></span>
+                    Live ECG Waveform
+                </h2>
                 <div class="ecg-meta">
                     <span>Lead II</span>
                     <span>25mm/s</span>
@@ -460,7 +504,16 @@
             </div>
             <div class="ecg-chart-wrapper">
                 <canvas id="ecgChart"></canvas>
+                <div class="no-data-overlay" id="ecgOverlay">
+                    <div class="icon">📡</div>
+                    <h3>Waiting for ECG Signal</h3>
+                    <p>Connect ESP32 to start monitoring</p>
+                </div>
             </div>
+        </div>
+
+        <div class="last-update" id="lastUpdate">
+            No data received yet
         </div>
     </main>
 
@@ -471,50 +524,22 @@
     <script>
         // ========== SOCKET.IO CONNECTION ==========
         const socket = io();
-        const connectionOverlay = document.getElementById('connectionOverlay');
+
+        // State
+        let hasReceivedData = false;
+        let lastDataTime = null;
+
+        // DOM Elements
+        const statusBadge = document.getElementById('statusBadge');
         const statusDot = document.getElementById('statusDot');
         const statusText = document.getElementById('statusText');
-
-        let isConnected = false;
-        let hasReceivedData = false;
-
-        socket.on('connect', () => {
-            console.log('✅ Connected to server');
-            isConnected = true;
-            updateConnectionStatus();
-        });
-
-        socket.on('disconnect', () => {
-            console.log('❌ Disconnected from server');
-            isConnected = false;
-            hasReceivedData = false;
-            updateConnectionStatus();
-        });
-
-        function updateConnectionStatus() {
-            if (isConnected && hasReceivedData) {
-                connectionOverlay.classList.remove('active');
-                statusDot.classList.remove('disconnected');
-                statusText.textContent = 'Monitoring Active';
-            } else if (isConnected) {
-                connectionOverlay.classList.add('active');
-                connectionOverlay.querySelector('h2').textContent = 'Waiting for Device...';
-                connectionOverlay.querySelector('p').textContent = 'ESP32 not yet transmitting';
-                statusDot.classList.remove('disconnected');
-                statusText.textContent = 'Waiting for Device';
-            } else {
-                connectionOverlay.classList.add('active');
-                connectionOverlay.querySelector('h2').textContent = 'Connection Lost';
-                connectionOverlay.querySelector('p').textContent = 'Attempting to reconnect...';
-                statusDot.classList.add('disconnected');
-                statusText.textContent = 'Disconnected';
-            }
-        }
+        const ecgIndicator = document.getElementById('ecgIndicator');
+        const ecgOverlay = document.getElementById('ecgOverlay');
+        const lastUpdateEl = document.getElementById('lastUpdate');
 
         // ========== CHART.JS SETUP ==========
         const ctx = document.getElementById('ecgChart').getContext('2d');
 
-        // Create gradient for ECG line
         const gradient = ctx.createLinearGradient(0, 0, ctx.canvas.width, 0);
         gradient.addColorStop(0, '#22d3ee');
         gradient.addColorStop(0.5, '#06b6d4');
@@ -528,7 +553,7 @@
                     label: 'ECG Signal',
                     borderColor: gradient,
                     borderWidth: 2.5,
-                    data: Array(100).fill(0),
+                    data: Array(100).fill(null), // Start with NULL, not zeros!
                     tension: 0.3,
                     pointRadius: 0,
                     fill: false
@@ -562,54 +587,133 @@
             }
         });
 
-        // ========== LISTEN FOR DATA ==========
-        socket.on('vitals_update', (data) => {
-            if (!hasReceivedData && data.bpm > 0) {
-                hasReceivedData = true;
-                updateConnectionStatus();
+        // ========== UPDATE FUNCTIONS ==========
+        function updateStatus(status) {
+            // Remove all classes
+            statusBadge.classList.remove('active', 'waiting', 'stale');
+            statusDot.classList.remove('active', 'waiting', 'stale');
+            ecgIndicator.classList.remove('active');
+
+            if (status === 'active') {
+                statusBadge.classList.add('active');
+                statusDot.classList.add('active');
+                ecgIndicator.classList.add('active');
+                statusText.textContent = 'Monitoring Active';
+                ecgOverlay.classList.remove('visible');
+            } else if (status === 'stale') {
+                statusBadge.classList.add('stale');
+                statusDot.classList.add('stale');
+                statusText.textContent = 'Connection Lost';
+                ecgOverlay.querySelector('h3').textContent = 'Signal Lost';
+                ecgOverlay.querySelector('p').textContent = 'Waiting for ESP32 to reconnect...';
+                ecgOverlay.classList.add('visible');
+            } else {
+                statusBadge.classList.add('waiting');
+                statusDot.classList.add('waiting');
+                statusText.textContent = 'Waiting for Device';
+                ecgOverlay.classList.add('visible');
+            }
+        }
+
+        function updateVitalCard(type, value) {
+            const card = document.getElementById(`card${type.charAt(0).toUpperCase() + type.slice(1)}`);
+            const valueEl = document.getElementById(type);
+            const statusEl = document.getElementById(`${type}Status`);
+            const valueContainer = valueEl.parentElement;
+
+            if (value === null || value === undefined) {
+                card.classList.add('no-data');
+                valueContainer.classList.add('no-data');
+                valueEl.textContent = '--';
+                statusEl.innerHTML = '<span>○</span> No data';
+                return;
             }
 
-            document.getElementById('bpm').innerText = data.bpm || '--';
-            document.getElementById('spo2').innerText = data.spo2 || '--';
-            document.getElementById('temp').innerText = data.temp || '--';
+            // We have data!
+            card.classList.remove('no-data');
+            valueContainer.classList.remove('no-data');
+            valueEl.textContent = value;
 
-            // Update status indicators based on values
-            updateVitalStatus('bpm', data.bpm);
-            updateVitalStatus('spo2', data.spo2);
-            updateVitalStatus('temp', data.temp);
+            // Update status based on values
+            let status = { text: 'Normal', color: 'var(--success)', symbol: '●' };
+
+            if (type === 'bpm') {
+                if (value > 100) status = { text: 'Elevated', color: 'var(--warning)', symbol: '●' };
+                else if (value > 120 || value < 50) status = { text: 'Alert', color: 'var(--danger)', symbol: '●' };
+                else if (value < 60) status = { text: 'Low', color: 'var(--warning)', symbol: '●' };
+            } else if (type === 'spo2') {
+                if (value >= 95) status = { text: 'Optimal', color: 'var(--success)', symbol: '●' };
+                else if (value >= 90) status = { text: 'Low', color: 'var(--warning)', symbol: '●' };
+                else status = { text: 'Critical', color: 'var(--danger)', symbol: '●' };
+            } else if (type === 'temp') {
+                if (value > 37.5 && value <= 38.5) status = { text: 'Fever', color: 'var(--warning)', symbol: '●' };
+                else if (value > 38.5) status = { text: 'High Fever', color: 'var(--danger)', symbol: '●' };
+                else if (value < 36) status = { text: 'Low', color: 'var(--warning)', symbol: '●' };
+            }
+
+            statusEl.innerHTML = `<span style="color: ${status.color}">${status.symbol}</span> ${status.text}`;
+        }
+
+        function formatTimeAgo(timestamp) {
+            if (!timestamp) return 'Never';
+            const seconds = Math.floor((Date.now() - timestamp) / 1000);
+            if (seconds < 5) return 'Just now';
+            if (seconds < 60) return `${seconds} seconds ago`;
+            const minutes = Math.floor(seconds / 60);
+            if (minutes < 60) return `${minutes} minute${minutes > 1 ? 's' : ''} ago`;
+            return 'Over an hour ago';
+        }
+
+        // Update "last seen" every second
+        setInterval(() => {
+            if (lastDataTime) {
+                lastUpdateEl.textContent = `Last update: ${formatTimeAgo(lastDataTime)}`;
+            }
+        }, 1000);
+
+        // ========== SOCKET EVENTS ==========
+        socket.on('connect', () => {
+            console.log('✅ Connected to server');
+        });
+
+        socket.on('disconnect', () => {
+            console.log('❌ Disconnected from server');
+            updateStatus('stale');
+        });
+
+        socket.on('vitals_update', (data) => {
+            console.log('📊 Vitals:', data);
+
+            // Update status
+            updateStatus(data.status);
+
+            // Update vitals (only if we have real data)
+            if (data.hasData) {
+                hasReceivedData = true;
+                lastDataTime = data.lastUpdate;
+
+                updateVitalCard('bpm', data.bpm);
+                updateVitalCard('spo2', data.spo2);
+                updateVitalCard('temp', data.temp);
+            } else {
+                // No data ever received
+                updateVitalCard('bpm', null);
+                updateVitalCard('spo2', null);
+                updateVitalCard('temp', null);
+            }
         });
 
         socket.on('ecg_stream', (value) => {
-            ecgChart.data.datasets[0].data.shift();
-            ecgChart.data.datasets[0].data.push(value);
-            ecgChart.update('none');
+            // Only add to chart if it's a valid number
+            if (typeof value === 'number' && !isNaN(value)) {
+                ecgChart.data.datasets[0].data.shift();
+                ecgChart.data.datasets[0].data.push(value);
+                ecgChart.update('none');
+            }
         });
 
-        function updateVitalStatus(type, value) {
-            const card = document.querySelector(`.vital-card.${type}`);
-            const statusEl = card.querySelector('.vital-status');
-
-            let status = { text: 'Normal', color: 'var(--success)' };
-
-            if (type === 'bpm') {
-                if (value > 100) status = { text: 'Elevated', color: 'var(--warning)' };
-                else if (value > 120) status = { text: 'High', color: 'var(--danger)' };
-                else if (value < 60) status = { text: 'Low', color: 'var(--warning)' };
-            } else if (type === 'spo2') {
-                if (value < 95) status = { text: 'Low', color: 'var(--warning)' };
-                else if (value < 90) status = { text: 'Critical', color: 'var(--danger)' };
-                else status = { text: 'Optimal', color: 'var(--success)' };
-            } else if (type === 'temp') {
-                if (value > 37.5) status = { text: 'Fever', color: 'var(--warning)' };
-                else if (value > 38.5) status = { text: 'High Fever', color: 'var(--danger)' };
-                else if (value < 36) status = { text: 'Low', color: 'var(--warning)' };
-            }
-
-            statusEl.innerHTML = `<span style="color: ${status.color}">●</span> ${status.text}`;
-        }
-
-        // Initial state
-        updateConnectionStatus();
+        // Initialize
+        updateStatus('waiting');
     </script>
 </body>
 
