@@ -371,20 +371,18 @@
         .no-data-overlay {
             position: absolute;
             inset: 0;
-            background: rgba(15, 23, 42, 0.8);
+            background: rgba(15, 23, 42, 0.9);
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
             border-radius: 24px;
-            opacity: 0;
-            pointer-events: none;
             transition: opacity 0.3s ease;
         }
 
-        .no-data-overlay.visible {
-            opacity: 1;
-            pointer-events: all;
+        .no-data-overlay.hidden {
+            opacity: 0;
+            pointer-events: none;
         }
 
         .no-data-overlay .icon {
@@ -506,8 +504,8 @@
                 <canvas id="ecgChart"></canvas>
                 <div class="no-data-overlay" id="ecgOverlay">
                     <div class="icon">📡</div>
-                    <h3>Waiting for ECG Signal</h3>
-                    <p>Connect ESP32 to start monitoring</p>
+                    <h3 id="overlayTitle">Waiting for ECG Signal</h3>
+                    <p id="overlaySubtitle">Connect ESP32 to start monitoring</p>
                 </div>
             </div>
         </div>
@@ -522,38 +520,51 @@
     </footer>
 
     <script>
-        // ========== SOCKET.IO CONNECTION ==========
-        const socket = io();
+        // ========== CONFIGURATION ==========
+        const DATA_FRESHNESS_TIMEOUT = 5000; // Data is stale after 5 seconds of no updates
+        const ECG_BUFFER_SIZE = 100;
 
-        // State
-        let hasReceivedData = false;
-        let lastDataTime = null;
+        // ========== STATE ==========
+        let lastRealDataTime = null;  // Timestamp of last REAL data from ESP32
+        let ecgPacketCount = 0;       // Count ECG packets to verify real data
+        let isReceivingData = false;  // Are we currently receiving real-time data?
+        let currentVitals = { bpm: null, spo2: null, temp: null };
 
-        // DOM Elements
+        // ========== DOM ELEMENTS ==========
         const statusBadge = document.getElementById('statusBadge');
         const statusDot = document.getElementById('statusDot');
         const statusText = document.getElementById('statusText');
         const ecgIndicator = document.getElementById('ecgIndicator');
         const ecgOverlay = document.getElementById('ecgOverlay');
+        const overlayTitle = document.getElementById('overlayTitle');
+        const overlaySubtitle = document.getElementById('overlaySubtitle');
         const lastUpdateEl = document.getElementById('lastUpdate');
+
+        // ========== SOCKET.IO CONNECTION ==========
+        const socket = io();
+
+        socket.on('connect', () => {
+            console.log('✅ Connected to server');
+            // Don't change state here - wait for actual data
+        });
+
+        socket.on('disconnect', () => {
+            console.log('❌ Disconnected from server');
+            setDataStale('Connection lost');
+        });
 
         // ========== CHART.JS SETUP ==========
         const ctx = document.getElementById('ecgChart').getContext('2d');
 
-        const gradient = ctx.createLinearGradient(0, 0, ctx.canvas.width, 0);
-        gradient.addColorStop(0, '#22d3ee');
-        gradient.addColorStop(0.5, '#06b6d4');
-        gradient.addColorStop(1, '#22d3ee');
-
         const ecgChart = new Chart(ctx, {
             type: 'line',
             data: {
-                labels: Array(100).fill(''),
+                labels: Array(ECG_BUFFER_SIZE).fill(''),
                 datasets: [{
                     label: 'ECG Signal',
-                    borderColor: gradient,
+                    borderColor: '#22d3ee',
                     borderWidth: 2.5,
-                    data: Array(100).fill(null), // Start with NULL, not zeros!
+                    data: Array(ECG_BUFFER_SIZE).fill(null),
                     tension: 0.3,
                     pointRadius: 0,
                     fill: false
@@ -563,62 +574,153 @@
                 responsive: true,
                 maintainAspectRatio: false,
                 animation: false,
-                plugins: {
-                    legend: { display: false }
-                },
+                plugins: { legend: { display: false } },
                 scales: {
                     y: {
                         min: -150,
                         max: 150,
-                        grid: {
-                            color: 'rgba(34, 211, 238, 0.1)',
-                            lineWidth: 0.5
-                        },
-                        ticks: {
-                            color: '#64748b',
-                            font: { size: 10 }
-                        }
+                        grid: { color: 'rgba(34, 211, 238, 0.1)', lineWidth: 0.5 },
+                        ticks: { color: '#64748b', font: { size: 10 } }
                     },
-                    x: {
-                        display: false,
-                        grid: { display: false }
-                    }
+                    x: { display: false, grid: { display: false } }
                 }
             }
         });
 
-        // ========== UPDATE FUNCTIONS ==========
-        function updateStatus(status) {
-            // Remove all classes
-            statusBadge.classList.remove('active', 'waiting', 'stale');
-            statusDot.classList.remove('active', 'waiting', 'stale');
+        // ========== DATA FRESHNESS CHECK ==========
+        // This runs every second to check if data is still fresh
+        setInterval(() => {
+            if (lastRealDataTime) {
+                const timeSinceUpdate = Date.now() - lastRealDataTime;
+
+                if (timeSinceUpdate > DATA_FRESHNESS_TIMEOUT && isReceivingData) {
+                    // Data has gone stale!
+                    setDataStale('Signal lost - no data for ' + Math.floor(timeSinceUpdate / 1000) + 's');
+                }
+
+                // Update "last seen" text
+                lastUpdateEl.textContent = `Last update: ${formatTimeAgo(lastRealDataTime)}`;
+            }
+        }, 1000);
+
+        // ========== SOCKET EVENT HANDLERS ==========
+
+        // IMPORTANT: We DON'T trust vitals_update alone - we need ecg_stream to prove real data
+        socket.on('vitals_update', (data) => {
+            console.log('📊 Vitals update received:', data);
+
+            // Store values but DON'T display yet - wait for ECG to confirm real transmission
+            if (data.bpm !== null && data.bpm !== undefined && data.bpm !== 0) {
+                currentVitals.bpm = data.bpm;
+            }
+            if (data.spo2 !== null && data.spo2 !== undefined && data.spo2 !== 0) {
+                currentVitals.spo2 = data.spo2;
+            }
+            if (data.temp !== null && data.temp !== undefined && data.temp !== 0) {
+                currentVitals.temp = data.temp;
+            }
+        });
+
+        // ECG stream is the "heartbeat" - proves device is actively transmitting
+        socket.on('ecg_stream', (value) => {
+            ecgPacketCount++;
+
+            // Mark as receiving real data
+            if (!isReceivingData) {
+                console.log('🎯 Real ECG data detected! Device is transmitting.');
+                isReceivingData = true;
+            }
+
+            // Update timestamp
+            lastRealDataTime = Date.now();
+
+            // Update UI to show we're receiving
+            setDataActive();
+
+            // Update vitals display with stored values
+            displayVitals();
+
+            // Update ECG chart
+            if (typeof value === 'number' && !isNaN(value)) {
+                ecgChart.data.datasets[0].data.shift();
+                ecgChart.data.datasets[0].data.push(value);
+                ecgChart.update('none');
+            }
+        });
+
+        // ========== UI UPDATE FUNCTIONS ==========
+
+        function setDataActive() {
+            // Update status badge
+            statusBadge.className = 'status-badge active';
+            statusDot.className = 'status-dot active';
+            statusText.textContent = 'Monitoring Active';
+
+            // Update ECG indicator
+            ecgIndicator.classList.add('active');
+
+            // Hide overlay
+            ecgOverlay.classList.add('hidden');
+        }
+
+        function setDataStale(reason) {
+            isReceivingData = false;
+
+            // Update status badge
+            statusBadge.className = 'status-badge stale';
+            statusDot.className = 'status-dot stale';
+            statusText.textContent = 'Signal Lost';
+
+            // Update ECG indicator
             ecgIndicator.classList.remove('active');
 
-            if (status === 'active') {
-                statusBadge.classList.add('active');
-                statusDot.classList.add('active');
-                ecgIndicator.classList.add('active');
-                statusText.textContent = 'Monitoring Active';
-                ecgOverlay.classList.remove('visible');
-            } else if (status === 'stale') {
-                statusBadge.classList.add('stale');
-                statusDot.classList.add('stale');
-                statusText.textContent = 'Connection Lost';
-                ecgOverlay.querySelector('h3').textContent = 'Signal Lost';
-                ecgOverlay.querySelector('p').textContent = 'Waiting for ESP32 to reconnect...';
-                ecgOverlay.classList.add('visible');
-            } else {
-                statusBadge.classList.add('waiting');
-                statusDot.classList.add('waiting');
-                statusText.textContent = 'Waiting for Device';
-                ecgOverlay.classList.add('visible');
-            }
+            // Show overlay with reason
+            overlayTitle.textContent = 'Signal Lost';
+            overlaySubtitle.textContent = reason || 'Waiting for ESP32 to reconnect...';
+            ecgOverlay.classList.remove('hidden');
+
+            // Reset vitals display to "--"
+            resetVitalsDisplay();
+        }
+
+        function setWaiting() {
+            // Update status badge
+            statusBadge.className = 'status-badge waiting';
+            statusDot.className = 'status-dot waiting';
+            statusText.textContent = 'Waiting for Device';
+
+            // Update ECG indicator
+            ecgIndicator.classList.remove('active');
+
+            // Show overlay
+            overlayTitle.textContent = 'Waiting for ECG Signal';
+            overlaySubtitle.textContent = 'Connect ESP32 to start monitoring';
+            ecgOverlay.classList.remove('hidden');
+
+            // Reset vitals
+            resetVitalsDisplay();
+        }
+
+        function displayVitals() {
+            // Only display if we're receiving real data
+            if (!isReceivingData) return;
+
+            updateVitalCard('bpm', currentVitals.bpm);
+            updateVitalCard('spo2', currentVitals.spo2);
+            updateVitalCard('temp', currentVitals.temp);
+        }
+
+        function resetVitalsDisplay() {
+            updateVitalCard('bpm', null);
+            updateVitalCard('spo2', null);
+            updateVitalCard('temp', null);
         }
 
         function updateVitalCard(type, value) {
-            const card = document.getElementById(`card${type.charAt(0).toUpperCase() + type.slice(1)}`);
+            const cardId = 'card' + type.charAt(0).toUpperCase() + type.slice(1);
+            const card = document.getElementById(cardId);
             const valueEl = document.getElementById(type);
-            const statusEl = document.getElementById(`${type}Status`);
+            const statusEl = document.getElementById(type + 'Status');
             const valueContainer = valueEl.parentElement;
 
             if (value === null || value === undefined) {
@@ -629,10 +731,10 @@
                 return;
             }
 
-            // We have data!
+            // We have real data!
             card.classList.remove('no-data');
             valueContainer.classList.remove('no-data');
-            valueEl.textContent = value;
+            valueEl.textContent = type === 'temp' ? value.toFixed(1) : value;
 
             // Update status based on values
             let status = { text: 'Normal', color: 'var(--success)', symbol: '●' };
@@ -658,62 +760,17 @@
             if (!timestamp) return 'Never';
             const seconds = Math.floor((Date.now() - timestamp) / 1000);
             if (seconds < 5) return 'Just now';
-            if (seconds < 60) return `${seconds} seconds ago`;
+            if (seconds < 60) return seconds + ' seconds ago';
             const minutes = Math.floor(seconds / 60);
-            if (minutes < 60) return `${minutes} minute${minutes > 1 ? 's' : ''} ago`;
+            if (minutes < 60) return minutes + ' minute' + (minutes > 1 ? 's' : '') + ' ago';
             return 'Over an hour ago';
         }
 
-        // Update "last seen" every second
-        setInterval(() => {
-            if (lastDataTime) {
-                lastUpdateEl.textContent = `Last update: ${formatTimeAgo(lastDataTime)}`;
-            }
-        }, 1000);
-
-        // ========== SOCKET EVENTS ==========
-        socket.on('connect', () => {
-            console.log('✅ Connected to server');
-        });
-
-        socket.on('disconnect', () => {
-            console.log('❌ Disconnected from server');
-            updateStatus('stale');
-        });
-
-        socket.on('vitals_update', (data) => {
-            console.log('📊 Vitals:', data);
-
-            // Update status
-            updateStatus(data.status);
-
-            // Update vitals (only if we have real data)
-            if (data.hasData) {
-                hasReceivedData = true;
-                lastDataTime = data.lastUpdate;
-
-                updateVitalCard('bpm', data.bpm);
-                updateVitalCard('spo2', data.spo2);
-                updateVitalCard('temp', data.temp);
-            } else {
-                // No data ever received
-                updateVitalCard('bpm', null);
-                updateVitalCard('spo2', null);
-                updateVitalCard('temp', null);
-            }
-        });
-
-        socket.on('ecg_stream', (value) => {
-            // Only add to chart if it's a valid number
-            if (typeof value === 'number' && !isNaN(value)) {
-                ecgChart.data.datasets[0].data.shift();
-                ecgChart.data.datasets[0].data.push(value);
-                ecgChart.update('none');
-            }
-        });
-
-        // Initialize
-        updateStatus('waiting');
+        // ========== INITIALIZE ==========
+        setWaiting();
+        console.log('🏥 ClinicQ Health Monitor initialized');
+        console.log('📡 Waiting for ESP32 to transmit data...');
+        console.log('ℹ️ Dashboard will only show values when ECG signal is detected');
     </script>
 </body>
 
