@@ -1,0 +1,13 @@
+# Render Blueprint
+# This tells Render exactly how to deploy this service
+
+services:
+  - type: web
+    name: clinicq-health-monitor
+    runtime: node
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+    autoDeploy: true
