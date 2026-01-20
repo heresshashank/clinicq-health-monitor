@@ -46,8 +46,8 @@
 const char* WIFI_SSID = "YOUR_WIFI_NAME";        // ← Change this!
 const char* WIFI_PASSWORD = "YOUR_WIFI_PASSWORD"; // ← Change this!
 
-// Server Configuration - UPDATE THIS AFTER DEPLOYMENT!
-const char* SERVER_HOST = "clinicq-health-monitor.onrender.com";  // ← Update after Render deployment
+// Server Configuration - PRODUCTION URL (Render)
+const char* SERVER_HOST = "clinicq-health-monitor.onrender.com";  // ✅ LIVE SERVER
 const uint16_t SERVER_PORT = 443;  // HTTPS port
 const bool USE_SSL = true;         // Set to true for HTTPS (Render uses HTTPS)
 

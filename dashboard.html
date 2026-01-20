@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Patient Monitor - ClinicQ</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        /* Specific Dashboard Styles */
+        body { background: #f0f2f5; }
+        .dashboard-container { max-width: 1000px; margin: 2rem auto; padding: 20px; }
+        
+        .vitals-grid { 
+            display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 20px; 
+        }
+        .vital-card { 
+            background: white; padding: 20px; border-radius: 15px; 
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1); text-align: center; 
+        }
+        .vital-value { font-size: 2.5rem; font-weight: bold; color: #2c3e50; }
+        .vital-label { color: #7f8c8d; text-transform: uppercase; font-size: 0.9rem; letter-spacing: 1px; }
+        
+        .ecg-container { 
+            background: white; padding: 20px; border-radius: 15px; 
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1); 
+        }
+    </style>
+</head>
+<body>
+
+    <header style="background: white; padding: 1rem; text-align: center; margin-bottom: 2rem;">
+        <h1 class="logo">Clinic<span class="logo-highlight">Q</span> Live Monitor</h1>
+    </header>
+
+    <div class="dashboard-container">
+        <div class="vitals-grid">
+            <div class="vital-card">
+                <div class="vital-label">Heart Rate</div>
+                <div class="vital-value"><span id="bpm">--</span> <small style="font-size:1rem">BPM</small></div>
+            </div>
+            <div class="vital-card">
+                <div class="vital-label">Oxygen (SpO2)</div>
+                <div class="vital-value"><span id="spo2">--</span> <small style="font-size:1rem">%</small></div>
+            </div>
+            <div class="vital-card">
+                <div class="vital-label">Temperature</div>
+                <div class="vital-value"><span id="temp">--</span> <small style="font-size:1rem">°C</small></div>
+            </div>
+        </div>
+
+        <div class="ecg-container">
+            <h3>Live ECG Stream</h3>
+            <canvas id="ecgChart"></canvas>
+        </div>
+    </div>
+
+    <script>
+        const socket = io();
+        
+        // --- 1. Setup Chart.js ---
+        const ctx = document.getElementById('ecgChart').getContext('2d');
+        const ecgChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: Array(50).fill(''), // 50 Empty labels for X-axis
+                datasets: [{
+                    label: 'ECG Signal',
+                    borderColor: '#ff6384',
+                    borderWidth: 2,
+                    data: Array(50).fill(0), // Start with zeros
+                    tension: 0.4, // Smooth curves
+                    pointRadius: 0 // Hide dots for a clean line
+                }]
+            },
+            options: {
+                animation: false, // Important: Disable animation for real-time performance
+                scales: {
+                    y: { min: -150, max: 150 }, // Adjust based on your simulator values
+                    x: { display: false } // Hide X-axis labels
+                }
+            }
+        });
+
+        // --- 2. Listen for Data ---
+        
+        // Update Numbers (BPM, SpO2)
+        socket.on('vitals_update', (data) => {
+            document.getElementById('bpm').innerText = data.bpm;
+            document.getElementById('spo2').innerText = data.spo2;
+            document.getElementById('temp').innerText = data.temp;
+        });
+
+        // Update Graph (ECG)
+        socket.on('ecg_stream', (value) => {
+            // Remove oldest point
+            ecgChart.data.datasets[0].data.shift();
+            // Add new point
+            ecgChart.data.datasets[0].data.push(value);
+            // Redraw
+            ecgChart.update();
+        });
+    </script>
+</body>
+</html>
+
+
