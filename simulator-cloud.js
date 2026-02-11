@@ -29,15 +29,97 @@ socket.on('disconnect', () => {
     console.log("🔌 Disconnected from server");
 });
 
-let angle = 0;
 let packetCount = 0;
+let ecgSampleIndex = 0;
+
+/**
+ * Realistic ECG Waveform Generator
+ * Generates a PQRST complex that mimics real cardiac electrical activity
+ * 
+ * ECG Components:
+ * - P Wave: Atrial depolarization (small positive bump)
+ * - QRS Complex: Ventricular depolarization (sharp spike)
+ *   - Q: Small negative deflection
+ *   - R: Large positive spike (main peak)
+ *   - S: Negative deflection after R
+ * - T Wave: Ventricular repolarization (positive bump)
+ * - Baseline: Isoelectric line between waves
+ */
+
+// ECG parameters - FAST with sharper peaks
+const SAMPLES_PER_BEAT = 25;   // Faster cycle (more beats visible)
+const BASELINE = 0;
+
+/**
+ * Generates a sharp, realistic ECG sample
+ * Uses triangular/exponential shapes for crisp peaks
+ */
+function generateECGSample(t) {
+    t = t % 1;
+    let value = BASELINE;
+
+    // P Wave (0.08 - 0.16) - Small bump, sharper
+    if (t >= 0.08 && t <= 0.16) {
+        const pT = (t - 0.08) / 0.08;
+        // Triangular shape for sharper P wave
+        value = 12 * (pT < 0.5 ? pT * 2 : (1 - pT) * 2);
+    }
+
+    // QRS Complex (0.20 - 0.32) - SHARP spikes
+    else if (t >= 0.20 && t <= 0.32) {
+        const qrsT = (t - 0.20) / 0.12;
+
+        // Q wave - quick dip
+        if (qrsT < 0.20) {
+            value = -15 * (qrsT / 0.20);
+        }
+        // R wave - SHARP triangular spike up
+        else if (qrsT < 0.45) {
+            const rT = (qrsT - 0.20) / 0.25;
+            value = -15 + (135 * rT);  // Goes from -15 to +120
+        }
+        // R wave down - sharp fall
+        else if (qrsT < 0.65) {
+            const rT = (qrsT - 0.45) / 0.20;
+            value = 120 - (155 * rT);  // Goes from +120 to -35
+        }
+        // S wave recovery
+        else {
+            const sT = (qrsT - 0.65) / 0.35;
+            value = -35 + (35 * sT);   // Goes from -35 to 0
+        }
+    }
+
+    // ST Segment (0.32 - 0.42)
+    else if (t > 0.32 && t < 0.42) {
+        value = 1;
+    }
+
+    // T Wave (0.42 - 0.58) - Rounded bump
+    else if (t >= 0.42 && t <= 0.58) {
+        const tT = (t - 0.42) / 0.16;
+        // Smoother T wave with sine
+        value = 20 * Math.sin(Math.PI * tT);
+    }
+
+    // Baseline
+    else {
+        value = 0;
+    }
+
+    // Minimal noise
+    value += (Math.random() - 0.5) * 2;
+
+    return value;
+}
 
 setInterval(() => {
     if (!socket.connected) return;
 
-    // Generate Fake ECG Wave (Sine wave with noise)
-    angle += 0.2;
-    const ecgValue = Math.sin(angle) * 100 + (Math.random() * 10);
+    // Generate realistic ECG waveform sample
+    const cyclePosition = (ecgSampleIndex % SAMPLES_PER_BEAT) / SAMPLES_PER_BEAT;
+    const ecgValue = generateECGSample(cyclePosition);
+    ecgSampleIndex++;
 
     // Generate Fake Vitals
     const fakeBPM = 72 + Math.floor(Math.random() * 5);
