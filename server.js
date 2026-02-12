@@ -19,6 +19,7 @@ app.get('/', (req, res) => {
 // --- 2. DATABASE CONNECTION ---
 // 👇 PASTE YOUR CONNECTION STRING BELOW 👇
 // REPLACE <db_password> with your actual password (remove the < > symbols too!)
+
 const mongoURI = "mongodb+srv://admin:Password@123@cluster0.rfvgwaq.mongodb.net/?appName=Cluster0";
 
 mongoose.connect(mongoURI)
