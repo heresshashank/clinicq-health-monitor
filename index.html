@@ -522,7 +522,7 @@
     <script>
         // ========== CONFIGURATION ==========
         const DATA_FRESHNESS_TIMEOUT = 5000; // Data is stale after 5 seconds of no updates
-        const ECG_BUFFER_SIZE = 100;
+        const ECG_BUFFER_SIZE = 200;
 
         // ========== STATE ==========
         let lastRealDataTime = null;  // Timestamp of last REAL data from ESP32
@@ -563,9 +563,9 @@
                 datasets: [{
                     label: 'ECG Signal',
                     borderColor: '#22d3ee',
-                    borderWidth: 2.5,
+                    borderWidth: 1.8,
                     data: Array(ECG_BUFFER_SIZE).fill(null),
-                    tension: 0.3,
+                    tension: 0.1,
                     pointRadius: 0,
                     fill: false
                 }]
@@ -577,7 +577,7 @@
                 plugins: { legend: { display: false } },
                 scales: {
                     y: {
-                        min: -150,
+                        min: -60,
                         max: 150,
                         grid: { color: 'rgba(34, 211, 238, 0.1)', lineWidth: 0.5 },
                         ticks: { color: '#64748b', font: { size: 10 } }
@@ -621,8 +621,11 @@
             }
         });
 
-        // ECG stream is the "heartbeat" - proves device is actively transmitting
-        socket.on('ecg_stream', (value) => {
+        // ECG data comes as part of 'sensor_data' event
+        socket.on('sensor_data', (data) => {
+            const value = data.ecg;
+            if (value === undefined || value === null) return;
+
             ecgPacketCount++;
 
             // Mark as receiving real data
