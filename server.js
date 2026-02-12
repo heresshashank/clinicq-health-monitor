@@ -20,7 +20,7 @@ app.get('/', (req, res) => {
 // 👇 PASTE YOUR CONNECTION STRING BELOW 👇
 // REPLACE <db_password> with your actual password (remove the < > symbols too!)
 
-const mongoURI = "mongodb+srv://admin:Password%40123@cluster0.rfvgwaq.mongodb.net/?appName=Cluster0";
+const mongoURI = "mongodb+srv://admin:clinicq123@cluster0.rfvgwaq.mongodb.net/?appName=Cluster0";
 
 mongoose.connect(mongoURI)
     .then(() => console.log("✅ Connected to MongoDB Atlas"))
