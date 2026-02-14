@@ -4,52 +4,106 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ClinicQ Live Health Monitor</title>
+    <title>ClinicQ — Live Patient Health Monitor</title>
     <meta name="description"
-        content="Real-time patient health monitoring dashboard with live ECG, heart rate, SpO2, and temperature tracking">
+        content="Real-time patient health monitoring dashboard with live ECG, heart rate, SpO2, and temperature tracking powered by ClinicQ.">
 
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+
+    <!-- Lucide Icons CDN -->
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
 
     <!-- Socket.io & Chart.js -->
     <script src="/socket.io/socket.io.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <style>
+        /* ============================================
+           DESIGN SYSTEM — ClinicQ Light Premium Theme
+           ============================================ */
         :root {
-            --primary: #6366f1;
-            --primary-dark: #4f46e5;
-            --success: #10b981;
-            --danger: #ef4444;
-            --warning: #f59e0b;
-            --bg-dark: #0f172a;
-            --bg-card: #1e293b;
-            --bg-card-light: #334155;
-            --text-primary: #f1f5f9;
-            --text-secondary: #94a3b8;
-            --text-muted: #64748b;
-            --ecg-line: #22d3ee;
-            --shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-            --glass: rgba(255, 255, 255, 0.05);
+            /* Primary Palette — Sage & Teal */
+            --primary: #2a9d8f;
+            --primary-light: #6ec6b8;
+            --primary-dark: #1f7a6e;
+            --primary-surface: rgba(42, 157, 143, 0.08);
+            --primary-surface-hover: rgba(42, 157, 143, 0.14);
+
+            /* Accent — Warm Coral */
+            --accent: #e76f51;
+            --accent-light: #f4a261;
+            --accent-surface: rgba(231, 111, 81, 0.1);
+
+            /* Semantic */
+            --success: #2a9d8f;
+            --danger: #e63946;
+            --warning: #f4a261;
+            --info: #457b9d;
+
+            /* Neutral Palette */
+            --bg-body: #f7f5f2;
+            --bg-card: #ffffff;
+            --bg-card-alt: #faf9f7;
+            --bg-inset: #f0eeeb;
+            --border: #e8e4df;
+            --border-light: #f0eeeb;
+
+            /* Text */
+            --text-900: #1d1d1f;
+            --text-700: #3a3a3c;
+            --text-500: #6e6e73;
+            --text-400: #8e8e93;
+            --text-300: #aeaeb2;
+
+            /* Shadows */
+            --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.06);
+            --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.06), 0 2px 4px rgba(0, 0, 0, 0.04);
+            --shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.08), 0 4px 12px rgba(0, 0, 0, 0.04);
+            --shadow-xl: 0 20px 60px rgba(0, 0, 0, 0.1), 0 8px 20px rgba(0, 0, 0, 0.04);
+            --shadow-card-hover: 0 16px 48px rgba(42, 157, 143, 0.12), 0 4px 12px rgba(0, 0, 0, 0.06);
+
+            /* ECG */
+            --ecg-line: #2a9d8f;
+            --ecg-grid: rgba(42, 157, 143, 0.06);
+
+            /* Sizing */
+            --radius-sm: 12px;
+            --radius-md: 16px;
+            --radius-lg: 24px;
+            --radius-xl: 32px;
         }
 
-        * {
+        /* ============================================
+           BASE RESET & TYPOGRAPHY
+           ============================================ */
+        *,
+        *::before,
+        *::after {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
 
-        body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-            background: linear-gradient(135deg, var(--bg-dark) 0%, #1a1a2e 50%, #16213e 100%);
-            min-height: 100vh;
-            color: var(--text-primary);
-            overflow-x: hidden;
+        html {
+            scroll-behavior: smooth;
         }
 
-        /* Animated Background */
+        body {
+            font-family: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-body);
+            min-height: 100vh;
+            color: var(--text-700);
+            overflow-x: hidden;
+            line-height: 1.6;
+        }
+
+        /* ============================================
+           ANIMATED BACKGROUND PATTERN
+           ============================================ */
         body::before {
             content: '';
             position: fixed;
@@ -58,105 +112,169 @@
             width: 100%;
             height: 100%;
             background:
-                radial-gradient(ellipse at 20% 20%, rgba(99, 102, 241, 0.15) 0%, transparent 50%),
-                radial-gradient(ellipse at 80% 80%, rgba(34, 211, 238, 0.1) 0%, transparent 50%);
+                radial-gradient(ellipse at 15% 10%, rgba(42, 157, 143, 0.06) 0%, transparent 50%),
+                radial-gradient(ellipse at 85% 80%, rgba(244, 162, 97, 0.05) 0%, transparent 50%),
+                radial-gradient(ellipse at 50% 50%, rgba(231, 111, 81, 0.03) 0%, transparent 60%);
             pointer-events: none;
             z-index: 0;
         }
 
-        /* Header */
+        /* ============================================
+           HEADER
+           ============================================ */
         header {
-            background: var(--glass);
-            backdrop-filter: blur(20px);
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-            padding: 1rem 2rem;
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(20px) saturate(180%);
+            -webkit-backdrop-filter: blur(20px) saturate(180%);
+            border-bottom: 1px solid var(--border-light);
+            padding: 0.875rem 2rem;
             position: sticky;
             top: 0;
             z-index: 100;
+            transition: box-shadow 0.3s ease;
+        }
+
+        header:hover {
+            box-shadow: var(--shadow-sm);
         }
 
         .header-content {
-            max-width: 1400px;
+            max-width: 1300px;
             margin: 0 auto;
             display: flex;
             justify-content: space-between;
             align-items: center;
         }
 
+        .logo-group {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .logo-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, var(--primary), var(--primary-light));
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            box-shadow: 0 4px 12px rgba(42, 157, 143, 0.3);
+        }
+
+        .logo-icon svg {
+            width: 22px;
+            height: 22px;
+        }
+
         .logo {
-            font-size: 1.75rem;
+            font-size: 1.5rem;
             font-weight: 700;
-            background: linear-gradient(135deg, #fff 0%, var(--ecg-line) 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
+            color: var(--text-900);
+            letter-spacing: -0.02em;
         }
 
         .logo span {
             color: var(--primary);
-            -webkit-text-fill-color: var(--primary);
+        }
+
+        .logo-sub {
+            font-size: 0.75rem;
+            color: var(--text-400);
+            font-weight: 500;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
         }
 
         .status-badge {
             display: flex;
             align-items: center;
             gap: 0.5rem;
-            padding: 0.5rem 1rem;
-            background: var(--glass);
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 0.5rem 1.125rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
             border-radius: 50px;
-            font-size: 0.875rem;
-            transition: all 0.3s ease;
+            font-size: 0.8125rem;
+            font-weight: 500;
+            color: var(--text-500);
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: var(--shadow-sm);
         }
 
         .status-badge.active {
-            border-color: rgba(16, 185, 129, 0.5);
-            background: rgba(16, 185, 129, 0.1);
+            border-color: rgba(42, 157, 143, 0.4);
+            background: var(--primary-surface);
+            color: var(--primary-dark);
         }
 
         .status-badge.waiting {
-            border-color: rgba(245, 158, 11, 0.5);
-            background: rgba(245, 158, 11, 0.1);
+            border-color: rgba(244, 162, 97, 0.4);
+            background: rgba(244, 162, 97, 0.08);
+            color: #c97a2e;
         }
 
         .status-badge.stale {
-            border-color: rgba(239, 68, 68, 0.5);
-            background: rgba(239, 68, 68, 0.1);
+            border-color: rgba(230, 57, 70, 0.4);
+            background: rgba(230, 57, 70, 0.08);
+            color: var(--danger);
         }
 
         .status-dot {
-            width: 10px;
-            height: 10px;
+            width: 8px;
+            height: 8px;
             border-radius: 50%;
             transition: all 0.3s ease;
+            flex-shrink: 0;
         }
 
         .status-dot.active {
             background: var(--success);
-            animation: pulse 2s infinite;
+            box-shadow: 0 0 0 3px rgba(42, 157, 143, 0.2);
+            animation: pulse-ring 2s infinite;
         }
 
         .status-dot.waiting {
             background: var(--warning);
-            animation: blink 1s infinite;
+            box-shadow: 0 0 0 3px rgba(244, 162, 97, 0.2);
+            animation: blink 1.2s infinite;
         }
 
         .status-dot.stale {
             background: var(--danger);
-            animation: none;
+            box-shadow: 0 0 0 3px rgba(230, 57, 70, 0.2);
         }
 
-        @keyframes pulse {
+        .time-badge {
+            font-size: 0.8125rem;
+            color: var(--text-400);
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 0.375rem;
+        }
+
+        .time-badge svg {
+            width: 14px;
+            height: 14px;
+        }
+
+        @keyframes pulse-ring {
 
             0%,
             100% {
-                opacity: 1;
-                transform: scale(1);
+                box-shadow: 0 0 0 3px rgba(42, 157, 143, 0.2);
             }
 
             50% {
-                opacity: 0.5;
-                transform: scale(1.2);
+                box-shadow: 0 0 0 6px rgba(42, 157, 143, 0.05);
             }
         }
 
@@ -168,35 +286,62 @@
             }
 
             50% {
-                opacity: 0.3;
+                opacity: 0.4;
             }
         }
 
-        /* Main Container */
+        /* ============================================
+           MAIN CONTAINER
+           ============================================ */
         .dashboard-container {
-            max-width: 1400px;
-            margin: 2rem auto;
-            padding: 0 1.5rem;
+            max-width: 1300px;
+            margin: 0 auto;
+            padding: 2rem 1.5rem 3rem;
             position: relative;
             z-index: 1;
         }
 
-        /* Vitals Grid */
+        /* Section Title */
+        .section-header {
+            display: flex;
+            align-items: center;
+            gap: 0.625rem;
+            margin-bottom: 1.25rem;
+        }
+
+        .section-header svg {
+            width: 18px;
+            height: 18px;
+            color: var(--primary);
+        }
+
+        .section-title {
+            font-size: 0.8125rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--text-400);
+        }
+
+        /* ============================================
+           VITALS GRID
+           ============================================ */
         .vitals-grid {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
-            gap: 1.5rem;
-            margin-bottom: 2rem;
+            gap: 1.25rem;
+            margin-bottom: 1.75rem;
         }
 
         .vital-card {
             background: var(--bg-card);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 24px;
-            padding: 2rem;
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-lg);
+            padding: 1.75rem;
             position: relative;
             overflow: hidden;
-            transition: all 0.3s ease;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: var(--shadow-sm);
         }
 
         .vital-card::before {
@@ -205,149 +350,252 @@
             top: 0;
             left: 0;
             right: 0;
-            height: 4px;
-            border-radius: 24px 24px 0 0;
-        }
-
-        .vital-card.bpm::before {
-            background: linear-gradient(90deg, #ef4444, #f97316);
-        }
-
-        .vital-card.spo2::before {
-            background: linear-gradient(90deg, #3b82f6, #8b5cf6);
-        }
-
-        .vital-card.temp::before {
-            background: linear-gradient(90deg, #10b981, #22d3ee);
+            height: 3px;
         }
 
         .vital-card:hover {
-            transform: translateY(-5px);
-            border-color: rgba(255, 255, 255, 0.2);
-            box-shadow: var(--shadow);
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-card-hover);
+        }
+
+        /* Card accent stripes */
+        .vital-card.bpm::before {
+            background: linear-gradient(90deg, #e63946, #e76f51);
+        }
+
+        .vital-card.spo2::before {
+            background: linear-gradient(90deg, #457b9d, #2a9d8f);
+        }
+
+        .vital-card.temp::before {
+            background: linear-gradient(90deg, #f4a261, #e9c46a);
+        }
+
+        /* Card decorative background circle */
+        .vital-card::after {
+            content: '';
+            position: absolute;
+            top: -30px;
+            right: -30px;
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            opacity: 0.04;
+            transition: opacity 0.3s ease;
+        }
+
+        .vital-card.bpm::after {
+            background: #e63946;
+        }
+
+        .vital-card.spo2::after {
+            background: #457b9d;
+        }
+
+        .vital-card.temp::after {
+            background: #f4a261;
+        }
+
+        .vital-card:hover::after {
+            opacity: 0.08;
         }
 
         .vital-card.no-data {
-            opacity: 0.6;
+            opacity: 0.65;
+        }
+
+        .vital-card-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 1.25rem;
         }
 
         .vital-icon {
-            width: 56px;
-            height: 56px;
-            border-radius: 16px;
+            width: 48px;
+            height: 48px;
+            border-radius: 14px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 1.75rem;
-            margin-bottom: 1rem;
+        }
+
+        .vital-icon svg {
+            width: 24px;
+            height: 24px;
         }
 
         .vital-card.bpm .vital-icon {
-            background: rgba(239, 68, 68, 0.2);
+            background: rgba(230, 57, 70, 0.1);
+            color: #e63946;
         }
 
         .vital-card.spo2 .vital-icon {
-            background: rgba(59, 130, 246, 0.2);
+            background: rgba(69, 123, 157, 0.1);
+            color: #457b9d;
         }
 
         .vital-card.temp .vital-icon {
-            background: rgba(16, 185, 129, 0.2);
+            background: rgba(244, 162, 97, 0.1);
+            color: #e76f51;
         }
 
-        .vital-label {
-            color: var(--text-secondary);
-            font-size: 0.875rem;
-            font-weight: 500;
-            text-transform: uppercase;
-            letter-spacing: 1.5px;
-            margin-bottom: 0.5rem;
-        }
-
-        .vital-value {
-            font-size: 3.5rem;
-            font-weight: 700;
-            line-height: 1;
-            margin-bottom: 0.5rem;
-        }
-
-        .vital-card.bpm .vital-value {
-            color: #f87171;
-        }
-
-        .vital-card.spo2 .vital-value {
-            color: #60a5fa;
-        }
-
-        .vital-card.temp .vital-value {
-            color: #34d399;
-        }
-
-        .vital-value.no-data {
-            color: var(--text-muted) !important;
-        }
-
-        .vital-unit {
-            font-size: 1.25rem;
-            font-weight: 400;
-            color: var(--text-secondary);
-        }
-
-        .vital-status {
-            font-size: 0.875rem;
-            color: var(--text-muted);
+        .vital-trend {
+            font-size: 0.6875rem;
+            font-weight: 600;
+            padding: 0.25rem 0.5rem;
+            border-radius: 6px;
             display: flex;
             align-items: center;
             gap: 0.25rem;
         }
 
-        /* ECG Container */
+        .vital-trend svg {
+            width: 12px;
+            height: 12px;
+        }
+
+        .vital-trend.normal {
+            background: rgba(42, 157, 143, 0.1);
+            color: #1f7a6e;
+        }
+
+        .vital-trend.elevated {
+            background: rgba(244, 162, 97, 0.1);
+            color: #c97a2e;
+        }
+
+        .vital-trend.critical {
+            background: rgba(230, 57, 70, 0.1);
+            color: #c9202e;
+        }
+
+        .vital-trend.no-data-trend {
+            background: var(--bg-inset);
+            color: var(--text-300);
+        }
+
+        .vital-label {
+            color: var(--text-400);
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 0.375rem;
+        }
+
+        .vital-value {
+            font-size: 3rem;
+            font-weight: 800;
+            line-height: 1;
+            margin-bottom: 0.25rem;
+            letter-spacing: -0.03em;
+        }
+
+        .vital-card.bpm .vital-value {
+            color: #e63946;
+        }
+
+        .vital-card.spo2 .vital-value {
+            color: #457b9d;
+        }
+
+        .vital-card.temp .vital-value {
+            color: #e76f51;
+        }
+
+        .vital-value.no-data {
+            color: var(--text-300) !important;
+        }
+
+        .vital-unit {
+            font-size: 1rem;
+            font-weight: 500;
+            color: var(--text-400);
+            margin-left: 0.25rem;
+        }
+
+        .vital-range {
+            font-size: 0.75rem;
+            color: var(--text-300);
+            font-weight: 400;
+            margin-top: 0.25rem;
+        }
+
+        /* ============================================
+           ECG CONTAINER
+           ============================================ */
         .ecg-container {
             background: var(--bg-card);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 24px;
-            padding: 2rem;
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-lg);
+            padding: 1.75rem;
             position: relative;
             overflow: hidden;
+            box-shadow: var(--shadow-sm);
+            transition: box-shadow 0.3s ease;
+        }
+
+        .ecg-container:hover {
+            box-shadow: var(--shadow-md);
         }
 
         .ecg-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 1.5rem;
+            margin-bottom: 1.25rem;
         }
 
-        .ecg-title {
-            font-size: 1.25rem;
-            font-weight: 600;
+        .ecg-title-group {
             display: flex;
             align-items: center;
-            gap: 0.75rem;
+            gap: 0.625rem;
         }
 
         .ecg-indicator {
-            width: 12px;
-            height: 12px;
+            width: 10px;
+            height: 10px;
             border-radius: 50%;
-            background: var(--text-muted);
+            background: var(--text-300);
             transition: all 0.3s ease;
         }
 
         .ecg-indicator.active {
             background: var(--ecg-line);
-            animation: pulse 1s infinite;
+            box-shadow: 0 0 0 3px rgba(42, 157, 143, 0.15);
+            animation: pulse-ring 1.5s infinite;
+        }
+
+        .ecg-title {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text-900);
         }
 
         .ecg-meta {
             display: flex;
-            gap: 1.5rem;
-            color: var(--text-secondary);
-            font-size: 0.875rem;
+            gap: 1rem;
+            color: var(--text-400);
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .ecg-meta-item {
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+            padding: 0.25rem 0.625rem;
+            background: var(--bg-inset);
+            border-radius: 6px;
         }
 
         .ecg-chart-wrapper {
-            height: 280px;
+            height: 250px;
             position: relative;
+            border-radius: var(--radius-md);
+            overflow: hidden;
+            background: var(--bg-card-alt);
         }
 
         #ecgChart {
@@ -355,29 +603,32 @@
             height: 100%;
         }
 
-        /* Grid lines overlay */
+        /* ECG grid lines overlay */
         .ecg-chart-wrapper::before {
             content: '';
             position: absolute;
             inset: 0;
             background:
-                linear-gradient(90deg, rgba(34, 211, 238, 0.03) 1px, transparent 1px),
-                linear-gradient(rgba(34, 211, 238, 0.03) 1px, transparent 1px);
-            background-size: 50px 50px;
+                linear-gradient(90deg, var(--ecg-grid) 1px, transparent 1px),
+                linear-gradient(var(--ecg-grid) 1px, transparent 1px);
+            background-size: 40px 40px;
             pointer-events: none;
+            z-index: 1;
         }
 
         /* No Data Overlay */
         .no-data-overlay {
             position: absolute;
             inset: 0;
-            background: rgba(15, 23, 42, 0.9);
+            background: rgba(247, 245, 242, 0.92);
+            backdrop-filter: blur(8px);
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            border-radius: 24px;
-            transition: opacity 0.3s ease;
+            border-radius: var(--radius-md);
+            transition: opacity 0.4s ease;
+            z-index: 5;
         }
 
         .no-data-overlay.hidden {
@@ -385,39 +636,94 @@
             pointer-events: none;
         }
 
-        .no-data-overlay .icon {
-            font-size: 3rem;
+        .overlay-icon {
+            width: 64px;
+            height: 64px;
+            border-radius: 20px;
+            background: var(--primary-surface);
+            display: flex;
+            align-items: center;
+            justify-content: center;
             margin-bottom: 1rem;
+            color: var(--primary);
+        }
+
+        .overlay-icon svg {
+            width: 28px;
+            height: 28px;
         }
 
         .no-data-overlay h3 {
-            font-size: 1.25rem;
-            margin-bottom: 0.5rem;
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text-900);
+            margin-bottom: 0.375rem;
         }
 
         .no-data-overlay p {
-            color: var(--text-secondary);
-            font-size: 0.875rem;
+            color: var(--text-400);
+            font-size: 0.8125rem;
+            font-weight: 400;
         }
 
-        /* Last Update Info */
-        .last-update {
-            text-align: center;
-            padding: 1rem;
-            color: var(--text-secondary);
-            font-size: 0.875rem;
+        /* ============================================
+           BOTTOM INFO BAR
+           ============================================ */
+        .info-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 1.25rem;
+            padding: 0.75rem 1.25rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-md);
+            box-shadow: var(--shadow-sm);
         }
 
-        /* Footer */
+        .info-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.8125rem;
+            color: var(--text-400);
+            font-weight: 500;
+        }
+
+        .info-item svg {
+            width: 15px;
+            height: 15px;
+            color: var(--text-300);
+        }
+
+        .info-item .value {
+            color: var(--text-700);
+            font-weight: 600;
+        }
+
+        /* ============================================
+           FOOTER
+           ============================================ */
         footer {
             text-align: center;
-            padding: 2rem;
-            color: var(--text-secondary);
-            font-size: 0.875rem;
+            padding: 1.5rem 2rem;
+            color: var(--text-300);
+            font-size: 0.75rem;
+            font-weight: 400;
+            border-top: 1px solid var(--border-light);
+            margin-top: 1rem;
         }
 
-        /* Responsive */
-        @media (max-width: 768px) {
+        footer a {
+            color: var(--primary);
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        /* ============================================
+           RESPONSIVE
+           ============================================ */
+        @media (max-width: 900px) {
             .vitals-grid {
                 grid-template-columns: 1fr;
             }
@@ -428,8 +734,106 @@
 
             .header-content {
                 flex-direction: column;
-                gap: 1rem;
+                gap: 0.75rem;
             }
+
+            .ecg-meta {
+                flex-wrap: wrap;
+            }
+
+            .info-bar {
+                flex-direction: column;
+                gap: 0.5rem;
+                text-align: center;
+            }
+        }
+
+        @media (max-width: 600px) {
+            .dashboard-container {
+                padding: 1rem;
+            }
+
+            header {
+                padding: 0.75rem 1rem;
+            }
+
+            .vital-card {
+                padding: 1.25rem;
+            }
+
+            .ecg-container {
+                padding: 1.25rem;
+            }
+        }
+
+        /* ============================================
+           ENTRANCE ANIMATIONS
+           ============================================ */
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .vital-card {
+            animation: slideUp 0.6s cubic-bezier(0.4, 0, 0.2, 1) both;
+        }
+
+        .vital-card:nth-child(1) {
+            animation-delay: 0.1s;
+        }
+
+        .vital-card:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .vital-card:nth-child(3) {
+            animation-delay: 0.3s;
+        }
+
+        .ecg-container {
+            animation: slideUp 0.6s cubic-bezier(0.4, 0, 0.2, 1) 0.4s both;
+        }
+
+        .info-bar {
+            animation: slideUp 0.6s cubic-bezier(0.4, 0, 0.2, 1) 0.5s both;
+        }
+
+        /* ============================================
+           HEARTBEAT ANIMATION ON BPM CARD
+           ============================================ */
+        @keyframes heartbeat {
+
+            0%,
+            100% {
+                transform: scale(1);
+            }
+
+            14% {
+                transform: scale(1.15);
+            }
+
+            28% {
+                transform: scale(1);
+            }
+
+            42% {
+                transform: scale(1.1);
+            }
+
+            56% {
+                transform: scale(1);
+            }
+        }
+
+        .vital-card.bpm.has-data .vital-icon {
+            animation: heartbeat 1.2s ease-in-out infinite;
         }
     </style>
 </head>
@@ -437,97 +841,176 @@
 <body>
     <header>
         <div class="header-content">
-            <h1 class="logo">Clinic<span>Q</span> Live Monitor</h1>
-            <div class="status-badge waiting" id="statusBadge">
-                <div class="status-dot waiting" id="statusDot"></div>
-                <span id="statusText">Waiting for Device</span>
+            <div class="logo-group">
+                <div class="logo-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path
+                            d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
+                    </svg>
+                </div>
+                <div>
+                    <div class="logo">Clinic<span>Q</span></div>
+                    <div class="logo-sub">Live Health Monitor</div>
+                </div>
+            </div>
+            <div class="header-right">
+                <div class="time-badge" id="liveTime">
+                    <i data-lucide="clock" style="width:14px;height:14px;"></i>
+                    <span id="timeDisplay">--:--</span>
+                </div>
+                <div class="status-badge waiting" id="statusBadge">
+                    <div class="status-dot waiting" id="statusDot"></div>
+                    <span id="statusText">Waiting for Device</span>
+                </div>
             </div>
         </div>
     </header>
 
     <main class="dashboard-container">
+        <!-- Section Label -->
+        <div class="section-header">
+            <i data-lucide="activity"></i>
+            <span class="section-title">Patient Vitals</span>
+        </div>
+
+        <!-- Vitals Grid -->
         <div class="vitals-grid">
             <!-- Heart Rate Card -->
             <div class="vital-card bpm no-data" id="cardBpm">
-                <div class="vital-icon">❤️</div>
+                <div class="vital-card-top">
+                    <div class="vital-icon">
+                        <i data-lucide="heart"></i>
+                    </div>
+                    <div class="vital-trend no-data-trend" id="bpmTrend">
+                        <i data-lucide="minus"></i>
+                        <span>—</span>
+                    </div>
+                </div>
                 <div class="vital-label">Heart Rate</div>
                 <div class="vital-value no-data">
                     <span id="bpm">--</span>
                     <span class="vital-unit">BPM</span>
                 </div>
-                <div class="vital-status" id="bpmStatus">
-                    <span>○</span> No data
-                </div>
+                <div class="vital-range" id="bpmRange">Normal: 60–100 BPM</div>
             </div>
 
             <!-- SpO2 Card -->
             <div class="vital-card spo2 no-data" id="cardSpo2">
-                <div class="vital-icon">💧</div>
-                <div class="vital-label">Oxygen Level</div>
+                <div class="vital-card-top">
+                    <div class="vital-icon">
+                        <i data-lucide="droplets"></i>
+                    </div>
+                    <div class="vital-trend no-data-trend" id="spo2Trend">
+                        <i data-lucide="minus"></i>
+                        <span>—</span>
+                    </div>
+                </div>
+                <div class="vital-label">Blood Oxygen</div>
                 <div class="vital-value no-data">
                     <span id="spo2">--</span>
                     <span class="vital-unit">%</span>
                 </div>
-                <div class="vital-status" id="spo2Status">
-                    <span>○</span> No data
-                </div>
+                <div class="vital-range" id="spo2Range">Optimal: ≥ 95%</div>
             </div>
 
             <!-- Temperature Card -->
             <div class="vital-card temp no-data" id="cardTemp">
-                <div class="vital-icon">🌡️</div>
+                <div class="vital-card-top">
+                    <div class="vital-icon">
+                        <i data-lucide="thermometer"></i>
+                    </div>
+                    <div class="vital-trend no-data-trend" id="tempTrend">
+                        <i data-lucide="minus"></i>
+                        <span>—</span>
+                    </div>
+                </div>
                 <div class="vital-label">Body Temperature</div>
                 <div class="vital-value no-data">
                     <span id="temp">--</span>
                     <span class="vital-unit">°C</span>
                 </div>
-                <div class="vital-status" id="tempStatus">
-                    <span>○</span> No data
-                </div>
+                <div class="vital-range" id="tempRange">Normal: 36.1–37.2°C</div>
             </div>
         </div>
 
-        <!-- ECG Chart -->
+        <!-- ECG Section -->
+        <div class="section-header">
+            <i data-lucide="radio"></i>
+            <span class="section-title">ECG Waveform</span>
+        </div>
+
         <div class="ecg-container">
             <div class="ecg-header">
-                <h2 class="ecg-title">
+                <div class="ecg-title-group">
                     <span class="ecg-indicator" id="ecgIndicator"></span>
-                    Live ECG Waveform
-                </h2>
+                    <h2 class="ecg-title">Live ECG Stream</h2>
+                </div>
                 <div class="ecg-meta">
-                    <span>Lead II</span>
-                    <span>25mm/s</span>
-                    <span>10mm/mV</span>
+                    <span class="ecg-meta-item">Lead II</span>
+                    <span class="ecg-meta-item">25mm/s</span>
+                    <span class="ecg-meta-item">10mm/mV</span>
                 </div>
             </div>
             <div class="ecg-chart-wrapper">
                 <canvas id="ecgChart"></canvas>
                 <div class="no-data-overlay" id="ecgOverlay">
-                    <div class="icon">📡</div>
+                    <div class="overlay-icon">
+                        <i data-lucide="radio"></i>
+                    </div>
                     <h3 id="overlayTitle">Waiting for ECG Signal</h3>
-                    <p id="overlaySubtitle">Connect ESP32 to start monitoring</p>
+                    <p id="overlaySubtitle">Connect your ESP32 device to start monitoring</p>
                 </div>
             </div>
         </div>
 
-        <div class="last-update" id="lastUpdate">
-            No data received yet
+        <!-- Info Bar -->
+        <div class="info-bar">
+            <div class="info-item">
+                <i data-lucide="user"></i>
+                Patient: <span class="value">Patient_001</span>
+            </div>
+            <div class="info-item" id="lastUpdate">
+                <i data-lucide="clock"></i>
+                Last update: <span class="value">No data yet</span>
+            </div>
+            <div class="info-item" id="packetInfo">
+                <i data-lucide="bar-chart-3"></i>
+                Packets: <span class="value">0</span>
+            </div>
         </div>
     </main>
 
     <footer>
-        <p>ClinicQ Health Monitor © 2026 • Real-time Patient Monitoring System</p>
+        <p>ClinicQ Health Monitor © 2026 · Built with care for better patient outcomes</p>
     </footer>
 
     <script>
+        // Initialize Lucide icons
+        lucide.createIcons();
+
+        // ========== LIVE CLOCK ==========
+        function updateClock() {
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString('en-US', {
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: true
+            });
+            document.getElementById('timeDisplay').textContent = timeStr;
+        }
+        updateClock();
+        setInterval(updateClock, 1000);
+
         // ========== CONFIGURATION ==========
-        const DATA_FRESHNESS_TIMEOUT = 5000; // Data is stale after 5 seconds of no updates
+        const DATA_FRESHNESS_TIMEOUT = 5000;
         const ECG_BUFFER_SIZE = 200;
 
         // ========== STATE ==========
-        let lastRealDataTime = null;  // Timestamp of last REAL data from ESP32
-        let ecgPacketCount = 0;       // Count ECG packets to verify real data
-        let isReceivingData = false;  // Are we currently receiving real-time data?
+        let lastRealDataTime = null;
+        let ecgPacketCount = 0;
+        let isReceivingData = false;
         let currentVitals = { bpm: null, spo2: null, temp: null };
 
         // ========== DOM ELEMENTS ==========
@@ -539,13 +1022,13 @@
         const overlayTitle = document.getElementById('overlayTitle');
         const overlaySubtitle = document.getElementById('overlaySubtitle');
         const lastUpdateEl = document.getElementById('lastUpdate');
+        const packetInfoEl = document.getElementById('packetInfo');
 
         // ========== SOCKET.IO CONNECTION ==========
         const socket = io();
 
         socket.on('connect', () => {
             console.log('✅ Connected to server');
-            // Don't change state here - wait for actual data
         });
 
         socket.on('disconnect', () => {
@@ -562,12 +1045,16 @@
                 labels: Array(ECG_BUFFER_SIZE).fill(''),
                 datasets: [{
                     label: 'ECG Signal',
-                    borderColor: '#22d3ee',
-                    borderWidth: 1.8,
+                    borderColor: '#2a9d8f',
+                    borderWidth: 2,
                     data: Array(ECG_BUFFER_SIZE).fill(null),
-                    tension: 0.1,
+                    tension: 0.15,
                     pointRadius: 0,
-                    fill: false
+                    fill: {
+                        target: 'origin',
+                        above: 'rgba(42, 157, 143, 0.05)',
+                        below: 'rgba(42, 157, 143, 0.02)'
+                    }
                 }]
             },
             options: {
@@ -579,37 +1066,43 @@
                     y: {
                         min: -60,
                         max: 150,
-                        grid: { color: 'rgba(34, 211, 238, 0.1)', lineWidth: 0.5 },
-                        ticks: { color: '#64748b', font: { size: 10 } }
+                        grid: {
+                            color: 'rgba(42, 157, 143, 0.06)',
+                            lineWidth: 0.5
+                        },
+                        ticks: {
+                            color: '#aeaeb2',
+                            font: { size: 10, family: 'Outfit' }
+                        }
                     },
-                    x: { display: false, grid: { display: false } }
+                    x: {
+                        display: false,
+                        grid: { display: false }
+                    }
                 }
             }
         });
 
         // ========== DATA FRESHNESS CHECK ==========
-        // This runs every second to check if data is still fresh
         setInterval(() => {
             if (lastRealDataTime) {
                 const timeSinceUpdate = Date.now() - lastRealDataTime;
 
                 if (timeSinceUpdate > DATA_FRESHNESS_TIMEOUT && isReceivingData) {
-                    // Data has gone stale!
-                    setDataStale('Signal lost - no data for ' + Math.floor(timeSinceUpdate / 1000) + 's');
+                    setDataStale('Signal lost — no data for ' + Math.floor(timeSinceUpdate / 1000) + 's');
                 }
 
-                // Update "last seen" text
-                lastUpdateEl.textContent = `Last update: ${formatTimeAgo(lastRealDataTime)}`;
+                const updateValueEl = lastUpdateEl.querySelector('.value');
+                if (updateValueEl) {
+                    updateValueEl.textContent = formatTimeAgo(lastRealDataTime);
+                }
             }
         }, 1000);
 
         // ========== SOCKET EVENT HANDLERS ==========
-
-        // IMPORTANT: We DON'T trust vitals_update alone - we need ecg_stream to prove real data
         socket.on('vitals_update', (data) => {
-            console.log('📊 Vitals update received:', data);
+            console.log('📊 Vitals update:', data);
 
-            // Store values but DON'T display yet - wait for ECG to confirm real transmission
             if (data.bpm !== null && data.bpm !== undefined && data.bpm !== 0) {
                 currentVitals.bpm = data.bpm;
             }
@@ -621,29 +1114,27 @@
             }
         });
 
-        // ECG data comes as part of 'sensor_data' event
         socket.on('sensor_data', (data) => {
             const value = data.ecg;
             if (value === undefined || value === null) return;
 
             ecgPacketCount++;
 
-            // Mark as receiving real data
             if (!isReceivingData) {
-                console.log('🎯 Real ECG data detected! Device is transmitting.');
+                console.log('🎯 Real ECG data detected!');
                 isReceivingData = true;
             }
 
-            // Update timestamp
             lastRealDataTime = Date.now();
-
-            // Update UI to show we're receiving
             setDataActive();
-
-            // Update vitals display with stored values
             displayVitals();
 
-            // Update ECG chart
+            // Update packet counter
+            const packetValueEl = packetInfoEl.querySelector('.value');
+            if (packetValueEl) {
+                packetValueEl.textContent = ecgPacketCount.toLocaleString();
+            }
+
             if (typeof value === 'number' && !isNaN(value)) {
                 ecgChart.data.datasets[0].data.shift();
                 ecgChart.data.datasets[0].data.push(value);
@@ -652,62 +1143,39 @@
         });
 
         // ========== UI UPDATE FUNCTIONS ==========
-
         function setDataActive() {
-            // Update status badge
             statusBadge.className = 'status-badge active';
             statusDot.className = 'status-dot active';
             statusText.textContent = 'Monitoring Active';
-
-            // Update ECG indicator
             ecgIndicator.classList.add('active');
-
-            // Hide overlay
             ecgOverlay.classList.add('hidden');
         }
 
         function setDataStale(reason) {
             isReceivingData = false;
-
-            // Update status badge
             statusBadge.className = 'status-badge stale';
             statusDot.className = 'status-dot stale';
             statusText.textContent = 'Signal Lost';
-
-            // Update ECG indicator
             ecgIndicator.classList.remove('active');
-
-            // Show overlay with reason
             overlayTitle.textContent = 'Signal Lost';
             overlaySubtitle.textContent = reason || 'Waiting for ESP32 to reconnect...';
             ecgOverlay.classList.remove('hidden');
-
-            // Reset vitals display to "--"
             resetVitalsDisplay();
         }
 
         function setWaiting() {
-            // Update status badge
             statusBadge.className = 'status-badge waiting';
             statusDot.className = 'status-dot waiting';
             statusText.textContent = 'Waiting for Device';
-
-            // Update ECG indicator
             ecgIndicator.classList.remove('active');
-
-            // Show overlay
             overlayTitle.textContent = 'Waiting for ECG Signal';
-            overlaySubtitle.textContent = 'Connect ESP32 to start monitoring';
+            overlaySubtitle.textContent = 'Connect your ESP32 device to start monitoring';
             ecgOverlay.classList.remove('hidden');
-
-            // Reset vitals
             resetVitalsDisplay();
         }
 
         function displayVitals() {
-            // Only display if we're receiving real data
             if (!isReceivingData) return;
-
             updateVitalCard('bpm', currentVitals.bpm);
             updateVitalCard('spo2', currentVitals.spo2);
             updateVitalCard('temp', currentVitals.temp);
@@ -723,57 +1191,60 @@
             const cardId = 'card' + type.charAt(0).toUpperCase() + type.slice(1);
             const card = document.getElementById(cardId);
             const valueEl = document.getElementById(type);
-            const statusEl = document.getElementById(type + 'Status');
             const valueContainer = valueEl.parentElement;
+            const trendEl = document.getElementById(type + 'Trend');
 
             if (value === null || value === undefined) {
                 card.classList.add('no-data');
+                card.classList.remove('has-data');
                 valueContainer.classList.add('no-data');
                 valueEl.textContent = '--';
-                statusEl.innerHTML = '<span>○</span> No data';
+                trendEl.className = 'vital-trend no-data-trend';
+                trendEl.innerHTML = '<span>—</span>';
                 return;
             }
 
-            // We have real data!
             card.classList.remove('no-data');
+            card.classList.add('has-data');
             valueContainer.classList.remove('no-data');
             valueEl.textContent = type === 'temp' ? value.toFixed(1) : value;
 
-            // Update status based on values
-            let status = { text: 'Normal', color: 'var(--success)', symbol: '●' };
+            // Determine status
+            let status = { text: 'Normal', className: 'normal', icon: 'check-circle' };
 
             if (type === 'bpm') {
-                if (value > 100) status = { text: 'Elevated', color: 'var(--warning)', symbol: '●' };
-                else if (value > 120 || value < 50) status = { text: 'Alert', color: 'var(--danger)', symbol: '●' };
-                else if (value < 60) status = { text: 'Low', color: 'var(--warning)', symbol: '●' };
+                if (value > 120 || value < 50) status = { text: 'Alert', className: 'critical', icon: 'alert-triangle' };
+                else if (value > 100) status = { text: 'Elevated', className: 'elevated', icon: 'trending-up' };
+                else if (value < 60) status = { text: 'Low', className: 'elevated', icon: 'trending-down' };
             } else if (type === 'spo2') {
-                if (value >= 95) status = { text: 'Optimal', color: 'var(--success)', symbol: '●' };
-                else if (value >= 90) status = { text: 'Low', color: 'var(--warning)', symbol: '●' };
-                else status = { text: 'Critical', color: 'var(--danger)', symbol: '●' };
+                if (value >= 95) status = { text: 'Optimal', className: 'normal', icon: 'check-circle' };
+                else if (value >= 90) status = { text: 'Low', className: 'elevated', icon: 'trending-down' };
+                else status = { text: 'Critical', className: 'critical', icon: 'alert-triangle' };
             } else if (type === 'temp') {
-                if (value > 37.5 && value <= 38.5) status = { text: 'Fever', color: 'var(--warning)', symbol: '●' };
-                else if (value > 38.5) status = { text: 'High Fever', color: 'var(--danger)', symbol: '●' };
-                else if (value < 36) status = { text: 'Low', color: 'var(--warning)', symbol: '●' };
+                if (value > 38.5) status = { text: 'High Fever', className: 'critical', icon: 'alert-triangle' };
+                else if (value > 37.5) status = { text: 'Fever', className: 'elevated', icon: 'trending-up' };
+                else if (value < 36) status = { text: 'Low', className: 'elevated', icon: 'trending-down' };
             }
 
-            statusEl.innerHTML = `<span style="color: ${status.color}">${status.symbol}</span> ${status.text}`;
+            trendEl.className = 'vital-trend ' + status.className;
+            trendEl.innerHTML = `<i data-lucide="${status.icon}"></i><span>${status.text}</span>`;
+            lucide.createIcons();
         }
 
         function formatTimeAgo(timestamp) {
             if (!timestamp) return 'Never';
             const seconds = Math.floor((Date.now() - timestamp) / 1000);
             if (seconds < 5) return 'Just now';
-            if (seconds < 60) return seconds + ' seconds ago';
+            if (seconds < 60) return seconds + 's ago';
             const minutes = Math.floor(seconds / 60);
-            if (minutes < 60) return minutes + ' minute' + (minutes > 1 ? 's' : '') + ' ago';
-            return 'Over an hour ago';
+            if (minutes < 60) return minutes + 'm ago';
+            return 'Over 1h ago';
         }
 
         // ========== INITIALIZE ==========
         setWaiting();
         console.log('🏥 ClinicQ Health Monitor initialized');
         console.log('📡 Waiting for ESP32 to transmit data...');
-        console.log('ℹ️ Dashboard will only show values when ECG signal is detected');
     </script>
 </body>
 

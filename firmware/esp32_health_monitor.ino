@@ -1,207 +1,122 @@
 /*
- * ClinicQ Health Monitor - ESP32 Firmware
- * ========================================
+ * ClinicQ Health Monitor - ESP32 Cloud Firmware
+ * ==============================================
  * 
- * This code reads sensor data from:
- * - AD8232 ECG Module (ECG waveform)
- * - MAX30102 Pulse Oximeter (Heart Rate & SpO2)
- * 
- * And sends it via WebSocket to the ClinicQ cloud server.
+ * Sensors: AD8232 (ECG) + MAX30100 (SpO2/HR)
+ * Streams live data to ClinicQ cloud dashboard.
  * 
  * WIRING:
  * -------
  * AD8232 ECG:
- *   - VCC → 3.3V
- *   - GND → GND
- *   - OUTPUT → GPIO 34 (Analog)
- *   - LO+ → GPIO 32
- *   - LO- → GPIO 33
+ *   VCC → 3.3V, GND → GND
+ *   OUTPUT → GPIO 34, LO+ → GPIO 32, LO- → GPIO 33
  * 
- * MAX30102:
- *   - VIN → 3.3V
- *   - GND → GND
- *   - SDA → GPIO 21
- *   - SCL → GPIO 22
+ * MAX30100:
+ *   VIN → 3.3V, GND → GND, SDA → GPIO 21, SCL → GPIO 22
  * 
- * LIBRARIES REQUIRED:
- * -------------------
- * 1. WiFi.h (built-in)
- * 2. WebSocketsClient by Markus Sattler
- * 3. ArduinoJson by Benoit Blanchon
- * 4. MAX30105 (SparkFun MAX3010x library)
+ * LIBRARIES: "WebSockets" by Markus Sattler, "MAX30100lib"
+ * Board: ESP32 Dev Module
  */
 
+// ===== INCLUDES =====
+#include <Arduino.h>
 #include <WiFi.h>
 #include <WebSocketsClient.h>
 #include <SocketIOclient.h>
-#include <ArduinoJson.h>
 #include <Wire.h>
-#include "MAX30105.h"
-#include "heartRate.h"
+#include "MAX30100_PulseOximeter.h"
 
-// ============== CONFIGURATION ==============
-// TODO: Change these values before uploading!
+// ================================================================
+//  ★★★ EDIT THESE TWO LINES WITH YOUR WIFI CREDENTIALS ★★★
+// ================================================================
+const char* WIFI_SSID     = "ADI's_A55";       // ← Change this!
+const char* WIFI_PASSWORD = "galaxy@123";    // ← Change this!
+// ================================================================
 
-// WiFi Credentials
-const char* WIFI_SSID = "YOUR_WIFI_NAME";        // ← Change this!
-const char* WIFI_PASSWORD = "YOUR_WIFI_PASSWORD"; // ← Change this!
+// ===== CLOUD SERVER (DO NOT CHANGE) =====
+const char* SERVER_HOST = "clinicq-health-monitor.onrender.com";
+const uint16_t SERVER_PORT = 443;
 
-// Server Configuration - PRODUCTION URL (Render)
-const char* SERVER_HOST = "clinicq-health-monitor.onrender.com";  // ✅ LIVE SERVER
-const uint16_t SERVER_PORT = 443;  // HTTPS port
-const bool USE_SSL = true;         // Set to true for HTTPS (Render uses HTTPS)
+// ===== PIN DEFINITIONS =====
+const int PIN_ECG_INPUT = 34;
+const int PIN_LO_PLUS  = 32;
+const int PIN_LO_MINUS = 33;
 
-// ============== PIN DEFINITIONS ==============
-#define ECG_PIN 34       // AD8232 OUTPUT pin
-#define ECG_LO_PLUS 32   // AD8232 LO+ pin (leads off detection)
-#define ECG_LO_MINUS 33  // AD8232 LO- pin (leads off detection)
-
-// ============== OBJECTS ==============
+// ===== OBJECTS =====
 SocketIOclient socketIO;
-MAX30105 particleSensor;
+PulseOximeter pox;
 
-// ============== VARIABLES ==============
-// Heart Rate calculation
-const byte RATE_SIZE = 4;
-byte rates[RATE_SIZE];
-byte rateSpot = 0;
-long lastBeat = 0;
-float beatsPerMinute = 0;
-int beatAvg = 0;
+// ===== MAX30100 GLOBALS =====
+bool maxSensorFound = false;    // ★ Skip sensor if not found
+float global_SpO2 = 0.0;
+float global_HR = 0.0;
+unsigned long lastBeatDetected = 0;
+bool beatDetected = false;
 
-// SpO2 calculation
-long irValue = 0;
-long redValue = 0;
+// ===== MAX30100 BEAT CALLBACK =====
+void onBeatDetected() {
+    beatDetected = true;
+    lastBeatDetected = millis();
+    Serial.println("💓 Beat detected!");
+}
 
-// Timing
-unsigned long lastVitalsSend = 0;
+// ===== ECG FILTER VARIABLES =====
+float hp_y = 0, hp_x_prev = 0;
+float lp_y = 0;
+
+// ===== ECG BEAT DETECTION =====
+const int MAX_RR_HIST = 30;
+unsigned long rrIntervals[MAX_RR_HIST];
+int rrCount = 0;
+unsigned long lastBeatTime = 0;
+float ecgBPM = 0;
+float ecgHRV = 0;
+float adaptiveThresh = 0;
+float lastFilteredECG = 0;
+
+// ===== TIMING =====
 unsigned long lastECGSend = 0;
-const unsigned long VITALS_INTERVAL = 1000;  // Send vitals every 1 second
-const unsigned long ECG_INTERVAL = 50;        // Send ECG at 20Hz (50ms)
+unsigned long lastVitalsPrint = 0;
+const unsigned long ECG_SEND_INTERVAL = 40;       // 25Hz → cloud
+const unsigned long VITALS_PRINT_INTERVAL = 1000; // 1Hz → serial debug
 
-// Connection status
+// ===== CONNECTION STATE =====
 bool isConnected = false;
 
-// ============== SETUP ==============
-void setup() {
-    Serial.begin(115200);
-    Serial.println("\n🏥 ClinicQ Health Monitor Starting...");
-    
-    // Initialize ECG pins
-    pinMode(ECG_LO_PLUS, INPUT);
-    pinMode(ECG_LO_MINUS, INPUT);
-    
-    // Connect to WiFi
-    connectToWiFi();
-    
-    // Initialize MAX30102 sensor
-    initializeMAX30102();
-    
-    // Connect to Socket.IO server
-    connectToServer();
-    
-    Serial.println("✅ Setup complete! Starting monitoring...");
+
+// ================================================================
+//  BANDPASS FILTER (0.5Hz - 40Hz)
+// ================================================================
+float bandpassFilter(float x) {
+    float alpha_hp = 0.995;
+    hp_y = alpha_hp * (hp_y + x - hp_x_prev);
+    hp_x_prev = x;
+
+    float alpha_lp = 0.15;
+    lp_y = lp_y + alpha_lp * (hp_y - lp_y);
+
+    return lp_y;
 }
 
-// ============== MAIN LOOP ==============
-void loop() {
-    // Handle Socket.IO events
-    socketIO.loop();
-    
-    // Read and process MAX30102 (Heart Rate & SpO2)
-    readMAX30102();
-    
-    // Send data at regular intervals
-    unsigned long currentTime = millis();
-    
-    // Send vitals (BPM, SpO2) every second
-    if (currentTime - lastVitalsSend >= VITALS_INTERVAL) {
-        sendVitals();
-        lastVitalsSend = currentTime;
-    }
-    
-    // Send ECG at 20Hz for smooth waveform
-    if (currentTime - lastECGSend >= ECG_INTERVAL) {
-        sendECG();
-        lastECGSend = currentTime;
-    }
-}
 
-// ============== WIFI CONNECTION ==============
-void connectToWiFi() {
-    Serial.print("📶 Connecting to WiFi: ");
-    Serial.println(WIFI_SSID);
-    
-    WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-    
-    int attempts = 0;
-    while (WiFi.status() != WL_CONNECTED && attempts < 30) {
-        delay(500);
-        Serial.print(".");
-        attempts++;
-    }
-    
-    if (WiFi.status() == WL_CONNECTED) {
-        Serial.println("\n✅ WiFi Connected!");
-        Serial.print("📍 IP Address: ");
-        Serial.println(WiFi.localIP());
-    } else {
-        Serial.println("\n❌ WiFi Connection Failed!");
-        Serial.println("Restarting in 5 seconds...");
-        delay(5000);
-        ESP.restart();
-    }
-}
-
-// ============== MAX30102 INITIALIZATION ==============
-void initializeMAX30102() {
-    Serial.println("🔧 Initializing MAX30102 sensor...");
-    
-    if (!particleSensor.begin(Wire, I2C_SPEED_FAST)) {
-        Serial.println("❌ MAX30102 was not found. Check wiring!");
-        // Continue anyway - ECG will still work
-    } else {
-        // Configure sensor
-        particleSensor.setup();
-        particleSensor.setPulseAmplitudeRed(0x0A);  // Red LED
-        particleSensor.setPulseAmplitudeGreen(0);   // Turn off Green LED
-        Serial.println("✅ MAX30102 initialized!");
-    }
-}
-
-// ============== SERVER CONNECTION ==============
-void connectToServer() {
-    Serial.print("🔌 Connecting to server: ");
-    Serial.println(SERVER_HOST);
-    
-    if (USE_SSL) {
-        socketIO.beginSSL(SERVER_HOST, SERVER_PORT, "/socket.io/?EIO=4");
-    } else {
-        socketIO.begin(SERVER_HOST, SERVER_PORT, "/socket.io/?EIO=4");
-    }
-    
-    socketIO.onEvent(socketIOEvent);
-}
-
-// ============== SOCKET.IO EVENT HANDLER ==============
+// ================================================================
+//  SOCKET.IO EVENT HANDLER
+// ================================================================
 void socketIOEvent(socketIOmessageType_t type, uint8_t* payload, size_t length) {
     switch (type) {
         case sIOtype_DISCONNECT:
-            Serial.println("❌ Disconnected from server");
+            Serial.println("❌ Disconnected from cloud");
             isConnected = false;
             break;
-            
+
         case sIOtype_CONNECT:
-            Serial.println("✅ Connected to server!");
+            Serial.println("✅ Connected to ClinicQ Cloud!");
+            Serial.println("🌐 Dashboard: https://clinicq-health-monitor.onrender.com");
             isConnected = true;
-            // Join the socket.io namespace
             socketIO.send(sIOtype_CONNECT, "/");
             break;
-            
+
         case sIOtype_EVENT:
-            Serial.printf("📨 Event: %s\n", payload);
-            break;
-            
         case sIOtype_ACK:
         case sIOtype_ERROR:
         case sIOtype_BINARY_EVENT:
@@ -210,113 +125,195 @@ void socketIOEvent(socketIOmessageType_t type, uint8_t* payload, size_t length) 
     }
 }
 
-// ============== READ MAX30102 SENSOR ==============
-void readMAX30102() {
-    irValue = particleSensor.getIR();
-    redValue = particleSensor.getRed();
-    
-    // Check if finger is on sensor
-    if (irValue > 50000) {
-        if (checkForBeat(irValue)) {
-            long delta = millis() - lastBeat;
-            lastBeat = millis();
-            
-            beatsPerMinute = 60 / (delta / 1000.0);
-            
-            if (beatsPerMinute < 255 && beatsPerMinute > 20) {
-                rates[rateSpot++] = (byte)beatsPerMinute;
-                rateSpot %= RATE_SIZE;
-                
-                // Calculate average
-                beatAvg = 0;
-                for (byte x = 0; x < RATE_SIZE; x++) {
-                    beatAvg += rates[x];
+
+// ================================================================
+//  WIFI CONNECTION
+// ================================================================
+void connectToWiFi() {
+    Serial.print("📶 Connecting to WiFi: ");
+    Serial.println(WIFI_SSID);
+
+    WiFi.mode(WIFI_STA);
+    WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+
+    int attempts = 0;
+    while (WiFi.status() != WL_CONNECTED && attempts < 30) {
+        delay(500);
+        Serial.print(".");
+        attempts++;
+    }
+
+    if (WiFi.status() == WL_CONNECTED) {
+        Serial.println("\n✅ WiFi Connected!");
+        Serial.print("📍 IP: ");
+        Serial.println(WiFi.localIP());
+    } else {
+        Serial.println("\n❌ WiFi Failed!");
+        delay(5000);
+        ESP.restart();
+    }
+}
+
+
+// ================================================================
+//  MAX30100 INITIALIZATION
+// ================================================================
+void initMAX30100() {
+    Serial.println("🔧 Initializing MAX30100 sensor...");
+
+    Wire.begin(21, 22);
+    Wire.setClock(400000);  // 400kHz I2C
+
+    if (!pox.begin()) {
+        Serial.println("⚠️  MAX30100 not found! SpO2/HR will show 0.");
+        Serial.println("    ECG + Cloud will still work.");
+        maxSensorFound = false;
+    } else {
+        // Same LED current as your working local code
+        pox.setIRLedCurrent(MAX30100_LED_CURR_24MA);
+        pox.setOnBeatDetectedCallback(onBeatDetected);
+        maxSensorFound = true;
+        Serial.println("✅ MAX30100 initialized! Place finger on sensor.");
+    }
+}
+
+
+// readMAX30100() is no longer needed — pox.update() is called
+// directly in loop() every iteration (like the working local code)
+
+// ================================================================
+//  SEND DATA TO CLOUD
+// ================================================================
+void sendToCloud(float ecgValue) {
+    if (!isConnected) return;
+
+    int mappedECG = map(constrain((int)ecgValue, -500, 1500), -500, 1500, -60, 150);
+
+    // Use MAX30100 HR if available, otherwise use ECG-derived BPM
+    int bestBPM = (global_HR > 20) ? (int)global_HR : (int)ecgBPM;
+    int bestSpO2 = (int)global_SpO2;
+
+    String packet = "[\"sensor_data\",{";
+    packet += "\"bpm\":";   packet += bestBPM;
+    packet += ",\"spo2\":"; packet += bestSpO2;
+    packet += ",\"ecg\":";  packet += mappedECG;
+    packet += ",\"temp\":36.6";
+    packet += "}]";
+
+    socketIO.sendEVENT(packet);
+}
+
+
+// ================================================================
+//  SETUP
+// ================================================================
+void setup() {
+    Serial.begin(115200);
+    delay(1000);
+    Serial.println("\n🏥 ClinicQ Health Monitor Starting...");
+
+    // Pin setup
+    pinMode(PIN_ECG_INPUT, INPUT);
+    pinMode(PIN_LO_PLUS, INPUT);
+    pinMode(PIN_LO_MINUS, INPUT);
+    analogReadResolution(12);
+
+    // 1. Connect to WiFi
+    connectToWiFi();
+
+    // 2. Initialize MAX30100
+    initMAX30100();
+
+    // 3. Connect to Cloud Server
+    Serial.print("🔌 Connecting to cloud: ");
+    Serial.println(SERVER_HOST);
+    socketIO.beginSSL(SERVER_HOST, SERVER_PORT, "/socket.io/?EIO=4");
+    socketIO.onEvent(socketIOEvent);
+
+    Serial.println("✅ Setup complete!\n");
+}
+
+
+// ================================================================
+//  MAIN LOOP
+//  ★ KEY FIX: pox.update() runs EVERY loop (like working local code)
+//  ★ socketIO.loop() runs only every 100ms (SSL is slow, was starving pox)
+// ================================================================
+void loop() {
+    unsigned long now = millis();
+
+    // ★ MAX30100: call pox.update() EVERY loop iteration (like your working code!)
+    // This is the #1 priority — must run at maximum speed
+    if (maxSensorFound) {
+        pox.update();
+        global_HR = pox.getHeartRate();
+        global_SpO2 = pox.getSpO2();
+    }
+
+    // ★ Socket.IO: only process every 100ms (SSL is slow, was blocking pox.update)
+    // 100ms is still fast enough for WebSocket heartbeats
+    static unsigned long lastSocketLoop = 0;
+    if (now - lastSocketLoop >= 100) {
+        lastSocketLoop = now;
+        socketIO.loop();
+    }
+
+    // --- ECG Sampling at 250Hz (every 4ms) ---
+    static unsigned long lastSampleMicros = 0;
+    if (micros() - lastSampleMicros >= 4000) {
+        lastSampleMicros = micros();
+
+        float ecgFiltered = 0;
+
+        if (digitalRead(PIN_LO_PLUS) == LOW && digitalRead(PIN_LO_MINUS) == LOW) {
+            int raw = analogRead(PIN_ECG_INPUT);
+            ecgFiltered = bandpassFilter(raw);
+        }
+
+        lastFilteredECG = ecgFiltered;
+
+        // QRS Beat Detection
+        adaptiveThresh = 0.9 * adaptiveThresh + 0.1 * ecgFiltered;
+
+        if (ecgFiltered > adaptiveThresh + 50 && now - lastBeatTime > 400) {
+            if (lastBeatTime != 0) {
+                long rr = now - lastBeatTime;
+
+                if (rrCount < MAX_RR_HIST)
+                    rrIntervals[rrCount++] = rr;
+                else {
+                    for (int i = 0; i < MAX_RR_HIST - 1; i++)
+                        rrIntervals[i] = rrIntervals[i + 1];
+                    rrIntervals[MAX_RR_HIST - 1] = rr;
                 }
-                beatAvg /= RATE_SIZE;
+
+                ecgBPM = 60000.0 / rr;
+
+                if (rrCount > 2) {
+                    long sumSq = 0;
+                    for (int i = 0; i < rrCount - 1; i++) {
+                        long d = rrIntervals[i + 1] - rrIntervals[i];
+                        sumSq += d * d;
+                    }
+                    ecgHRV = sqrt((float)sumSq / (rrCount - 1));
+                }
             }
+            lastBeatTime = now;
         }
     }
-}
 
-// ============== CALCULATE SpO2 ==============
-int calculateSpO2() {
-    // Simple SpO2 estimation
-    // In real implementation, use the library's spo2 calculation
-    if (irValue < 50000) return 0;  // No finger detected
-    
-    // Basic calculation (for demonstration)
-    // Real SpO2 needs proper calibration
-    float ratio = (float)redValue / (float)irValue;
-    int spo2 = 110 - 25 * ratio;  // Simplified formula
-    
-    // Clamp to realistic range
-    if (spo2 > 100) spo2 = 100;
-    if (spo2 < 0) spo2 = 0;
-    
-    return spo2;
-}
-
-// ============== SEND VITALS DATA ==============
-void sendVitals() {
-    if (!isConnected) return;
-    
-    // Create JSON document
-    StaticJsonDocument<256> doc;
-    JsonArray array = doc.to<JsonArray>();
-    
-    // First element is the event name
-    array.add("sensor_data");
-    
-    // Second element is the data object
-    JsonObject data = array.createNestedObject();
-    data["bpm"] = beatAvg;
-    data["spo2"] = calculateSpO2();
-    data["temp"] = 36.6;  // Placeholder - add temperature sensor if needed
-    
-    // Read ECG value
-    int ecgValue = 0;
-    if (digitalRead(ECG_LO_PLUS) == 0 && digitalRead(ECG_LO_MINUS) == 0) {
-        ecgValue = analogRead(ECG_PIN);
-        // Map to -150 to 150 range for display
-        ecgValue = map(ecgValue, 0, 4095, -150, 150);
+    // --- Send ECG to cloud at 25Hz ---
+    if (now - lastECGSend >= ECG_SEND_INTERVAL) {
+        lastECGSend = now;
+        sendToCloud(lastFilteredECG);
     }
-    data["ecg"] = ecgValue;
-    
-    // Serialize and send
-    String output;
-    serializeJson(doc, output);
-    socketIO.sendEVENT(output);
-    
-    // Debug output
-    Serial.printf("📤 Sent: BPM=%d, SpO2=%d, ECG=%d\n", 
-                  beatAvg, calculateSpO2(), ecgValue);
-}
 
-// ============== SEND ECG DATA (High Frequency) ==============
-void sendECG() {
-    if (!isConnected) return;
-    
-    // Check if leads are connected
-    if (digitalRead(ECG_LO_PLUS) == 1 || digitalRead(ECG_LO_MINUS) == 1) {
-        return;  // Leads are off, don't send garbage
+    // --- Debug print every 1 second ---
+    if (now - lastVitalsPrint >= VITALS_PRINT_INTERVAL) {
+        lastVitalsPrint = now;
+        Serial.printf("📤 ECG_BPM: %.0f | SpO2: %.0f%% | HR: %.0f | HRV: %.1f | MAX: %s | Cloud: %s\n",
+                      ecgBPM, global_SpO2, global_HR, ecgHRV,
+                      maxSensorFound ? "✅" : "❌",
+                      isConnected ? "✅" : "❌");
     }
-    
-    int ecgValue = analogRead(ECG_PIN);
-    // Map to -150 to 150 range for display
-    ecgValue = map(ecgValue, 0, 4095, -150, 150);
-    
-    // Create JSON for ECG stream
-    StaticJsonDocument<128> doc;
-    JsonArray array = doc.to<JsonArray>();
-    array.add("sensor_data");
-    
-    JsonObject data = array.createNestedObject();
-    data["bpm"] = beatAvg;
-    data["spo2"] = calculateSpO2();
-    data["temp"] = 36.6;
-    data["ecg"] = ecgValue;
-    
-    String output;
-    serializeJson(doc, output);
-    socketIO.sendEVENT(output);
 }
