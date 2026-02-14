@@ -10,7 +10,7 @@
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap"
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
         rel="stylesheet">
 
     <!-- Lucide Icons -->
@@ -22,25 +22,25 @@
 
     <style>
         :root {
-            --primary: #2a9d8f;
-            --primary-light: #6ec6b8;
-            --primary-dark: #1f7a6e;
-            --accent: #e76f51;
-            --accent-light: #f4a261;
-            --danger: #e63946;
-            --bg-body: #f7f5f2;
+            --primary: #0084ff;
+            --primary-shadow: rgba(0, 132, 255, 0.25);
+            --heart-red: #ef4444;
+            --oxy-blue: #3b82f6;
+            --temp-amber: #f59e0b;
+            --bg-body-start: #f0f4fb;
+            --bg-body-mid: #f5f3f0;
+            --bg-body-end: #faf8f6;
             --bg-card: #ffffff;
-            --bg-card-alt: #faf9f7;
-            --bg-inset: #f0eeeb;
-            --border: #e8e4df;
-            --border-light: #f0eeeb;
-            --text-900: #1d1d1f;
-            --text-700: #3a3a3c;
-            --text-500: #6e6e73;
-            --text-400: #8e8e93;
-            --text-300: #aeaeb2;
-            --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.06);
-            --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.06), 0 2px 4px rgba(0, 0, 0, 0.04);
+            --bg-card-alt: #fcfaf8;
+            --bg-inset: #f3f1ee;
+            --border-light: #edf2f9;
+            --text-900: #0f172a;
+            --text-700: #334155;
+            --text-500: #64748b;
+            --text-400: #94a3b8;
+            --text-300: #cbd5e1;
+            --shadow-sm: 0 1px 3px rgba(0, 50, 100, 0.04), 0 1px 2px rgba(0, 50, 100, 0.06);
+            --shadow-md: 0 4px 16px rgba(0, 50, 100, 0.06), 0 2px 4px rgba(0, 50, 100, 0.04);
         }
 
         *,
@@ -52,8 +52,8 @@
         }
 
         body {
-            font-family: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
-            background: var(--bg-body);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(170deg, var(--bg-body-start) 0%, var(--bg-body-mid) 45%, var(--bg-body-end) 100%);
             min-height: 100vh;
             color: var(--text-700);
             overflow-x: hidden;
@@ -67,55 +67,54 @@
             width: 100%;
             height: 100%;
             background:
-                radial-gradient(ellipse at 15% 10%, rgba(42, 157, 143, 0.06) 0%, transparent 50%),
-                radial-gradient(ellipse at 85% 80%, rgba(244, 162, 97, 0.05) 0%, transparent 50%);
+                radial-gradient(ellipse at 15% 0%, rgba(0, 132, 255, 0.06) 0%, transparent 50%),
+                radial-gradient(ellipse at 85% 85%, rgba(59, 130, 246, 0.04) 0%, transparent 50%),
+                radial-gradient(ellipse at 50% 30%, rgba(245, 190, 80, 0.04) 0%, transparent 45%);
             pointer-events: none;
             z-index: 0;
         }
 
         header {
-            background: rgba(255, 255, 255, 0.85);
-            backdrop-filter: blur(20px) saturate(180%);
-            -webkit-backdrop-filter: blur(20px) saturate(180%);
-            border-bottom: 1px solid var(--border-light);
-            padding: 1rem 2rem;
-            text-align: center;
             position: sticky;
             top: 0;
             z-index: 100;
+            padding: 0.75rem 1.5rem 0;
         }
 
-        .header-inner {
+        .header-bar {
             max-width: 1100px;
             margin: 0 auto;
+            background: rgba(255, 255, 255, 0.55);
+            backdrop-filter: blur(24px) saturate(200%);
+            -webkit-backdrop-filter: blur(24px) saturate(200%);
+            border: 1px solid var(--border-light);
+            border-radius: 60px;
+            padding: 0.625rem 1.5rem;
             display: flex;
-            align-items: center;
             justify-content: center;
-            gap: 0.75rem;
+            align-items: center;
+            gap: 0.625rem;
+            box-shadow: 0 2px 20px rgba(0, 50, 100, 0.06);
         }
 
         .logo-icon {
-            width: 36px;
-            height: 36px;
-            background: linear-gradient(135deg, var(--primary), var(--primary-light));
-            border-radius: 10px;
+            width: 34px;
+            height: 34px;
+            background: var(--primary);
+            border-radius: 9px;
             display: flex;
             align-items: center;
             justify-content: center;
             color: white;
-            box-shadow: 0 4px 12px rgba(42, 157, 143, 0.3);
-        }
-
-        .logo-icon svg {
-            width: 20px;
-            height: 20px;
+            font-weight: 800;
+            font-size: 1rem;
+            box-shadow: 0 3px 10px var(--primary-shadow);
         }
 
         .logo {
-            font-size: 1.375rem;
+            font-size: 1.1875rem;
             font-weight: 700;
             color: var(--text-900);
-            letter-spacing: -0.02em;
         }
 
         .logo span {
@@ -123,11 +122,11 @@
         }
 
         .logo-sub {
-            font-size: 0.6875rem;
+            font-size: 0.625rem;
             color: var(--text-400);
-            font-weight: 500;
-            letter-spacing: 0.08em;
+            font-weight: 600;
             text-transform: uppercase;
+            letter-spacing: 0.1em;
         }
 
         .status-dot {
@@ -136,8 +135,8 @@
             height: 8px;
             background: var(--primary);
             border-radius: 50%;
-            margin-right: 6px;
-            box-shadow: 0 0 0 3px rgba(42, 157, 143, 0.15);
+            margin-right: 5px;
+            box-shadow: 0 0 0 3px rgba(0, 132, 255, 0.15);
             animation: pulse-dot 1.5s infinite;
         }
 
@@ -145,11 +144,11 @@
 
             0%,
             100% {
-                box-shadow: 0 0 0 3px rgba(42, 157, 143, 0.15);
+                box-shadow: 0 0 0 3px rgba(0, 132, 255, 0.15);
             }
 
             50% {
-                box-shadow: 0 0 0 6px rgba(42, 157, 143, 0.05);
+                box-shadow: 0 0 0 6px rgba(0, 132, 255, 0.05);
             }
         }
 
@@ -175,35 +174,15 @@
             border-radius: 20px;
             text-align: center;
             box-shadow: var(--shadow-sm);
-            transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: all 0.3s ease;
             position: relative;
             overflow: hidden;
-        }
-
-        .vital-card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 3px;
-        }
-
-        .vital-card:nth-child(1)::before {
-            background: linear-gradient(90deg, #e63946, #e76f51);
-        }
-
-        .vital-card:nth-child(2)::before {
-            background: linear-gradient(90deg, #457b9d, #2a9d8f);
-        }
-
-        .vital-card:nth-child(3)::before {
-            background: linear-gradient(90deg, #f4a261, #e9c46a);
         }
 
         .vital-card:hover {
             transform: translateY(-3px);
             box-shadow: var(--shadow-md);
+            border-color: rgba(0, 132, 255, 0.15);
         }
 
         .vital-icon-wrap {
@@ -222,52 +201,51 @@
         }
 
         .vital-card:nth-child(1) .vital-icon-wrap {
-            background: rgba(230, 57, 70, 0.1);
-            color: #e63946;
+            background: rgba(239, 68, 68, 0.08);
+            color: #ef4444;
         }
 
         .vital-card:nth-child(2) .vital-icon-wrap {
-            background: rgba(69, 123, 157, 0.1);
-            color: #457b9d;
+            background: rgba(59, 130, 246, 0.08);
+            color: #3b82f6;
         }
 
         .vital-card:nth-child(3) .vital-icon-wrap {
-            background: rgba(244, 162, 97, 0.1);
-            color: #e76f51;
+            background: rgba(245, 158, 11, 0.08);
+            color: #f59e0b;
         }
 
         .vital-label {
             color: var(--text-400);
             text-transform: uppercase;
-            font-size: 0.6875rem;
+            font-size: 0.625rem;
             letter-spacing: 0.1em;
-            font-weight: 600;
-            margin-bottom: 0.375rem;
+            font-weight: 700;
+            margin-bottom: 0.25rem;
         }
 
         .vital-value {
-            font-size: 2.75rem;
+            font-size: 2.5rem;
             font-weight: 800;
             letter-spacing: -0.02em;
         }
 
         .vital-card:nth-child(1) .vital-value {
-            color: #e63946;
+            color: #ef4444;
         }
 
         .vital-card:nth-child(2) .vital-value {
-            color: #457b9d;
+            color: #3b82f6;
         }
 
         .vital-card:nth-child(3) .vital-value {
-            color: #e76f51;
+            color: #f59e0b;
         }
 
         .vital-value .unit {
-            font-size: 0.875rem;
+            font-size: 0.8125rem;
             color: var(--text-400);
             font-weight: 500;
-            margin-left: 0.125rem;
         }
 
         .ecg-container {
@@ -285,10 +263,10 @@
 
         .ecg-container h3 {
             color: var(--primary);
-            font-size: 0.75rem;
+            font-size: 0.6875rem;
             text-transform: uppercase;
-            letter-spacing: 0.1em;
-            font-weight: 600;
+            letter-spacing: 0.12em;
+            font-weight: 700;
             margin-bottom: 1rem;
             display: flex;
             align-items: center;
@@ -296,6 +274,7 @@
 
         .ecg-chart-wrap {
             background: var(--bg-card-alt);
+            border: 1px solid var(--border-light);
             border-radius: 12px;
             overflow: hidden;
             position: relative;
@@ -306,14 +285,14 @@
             position: absolute;
             inset: 0;
             background:
-                linear-gradient(90deg, rgba(42, 157, 143, 0.04) 1px, transparent 1px),
-                linear-gradient(rgba(42, 157, 143, 0.04) 1px, transparent 1px);
+                linear-gradient(90deg, rgba(0, 132, 255, 0.04) 1px, transparent 1px),
+                linear-gradient(rgba(0, 132, 255, 0.04) 1px, transparent 1px);
             background-size: 40px 40px;
             pointer-events: none;
             z-index: 1;
         }
 
-        @keyframes slideUp {
+        @keyframes fadeSlideUp {
             from {
                 opacity: 0;
                 transform: translateY(16px);
@@ -326,7 +305,7 @@
         }
 
         .vital-card {
-            animation: slideUp 0.5s ease both;
+            animation: fadeSlideUp 0.5s ease both;
         }
 
         .vital-card:nth-child(1) {
@@ -342,7 +321,7 @@
         }
 
         .ecg-container {
-            animation: slideUp 0.5s 0.4s ease both;
+            animation: fadeSlideUp 0.5s 0.4s ease both;
         }
 
         @media (max-width: 768px) {
@@ -353,6 +332,10 @@
             .vital-value {
                 font-size: 2rem;
             }
+
+            .header-bar {
+                border-radius: 16px;
+            }
         }
     </style>
 </head>
@@ -360,14 +343,8 @@
 <body>
 
     <header>
-        <div class="header-inner">
-            <div class="logo-icon">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
-                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path
-                        d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
-                </svg>
-            </div>
+        <div class="header-bar">
+            <div class="logo-icon">C</div>
             <div>
                 <div class="logo">Clinic<span>Q</span></div>
                 <div class="logo-sub">Live Monitor</div>
@@ -403,28 +380,27 @@
     </div>
 
     <script>
-        // Initialize Lucide icons
         lucide.createIcons();
 
         const socket = io();
-
         const ctx = document.getElementById('ecgChart').getContext('2d');
         const DATA_POINTS = 200;
+
         const ecgChart = new Chart(ctx, {
             type: 'line',
             data: {
                 labels: Array(DATA_POINTS).fill(''),
                 datasets: [{
                     label: 'ECG Signal',
-                    borderColor: '#2a9d8f',
+                    borderColor: '#0084ff',
                     borderWidth: 1.8,
                     data: Array(DATA_POINTS).fill(0),
                     tension: 0.1,
                     pointRadius: 0,
                     fill: {
                         target: 'origin',
-                        above: 'rgba(42, 157, 143, 0.04)',
-                        below: 'rgba(42, 157, 143, 0.02)'
+                        above: 'rgba(0, 132, 255, 0.04)',
+                        below: 'rgba(0, 132, 255, 0.02)'
                     }
                 }]
             },
@@ -433,10 +409,7 @@
                 animation: false,
                 plugins: { legend: { display: false } },
                 scales: {
-                    y: {
-                        min: -60, max: 150,
-                        display: false
-                    },
+                    y: { min: -60, max: 150, display: false },
                     x: { display: false }
                 }
             }
