@@ -43,9 +43,9 @@
             --oxy-blue-bg: rgba(59, 130, 246, 0.08);
             --oxy-blue-light: #93bbfd;
 
-            --temp-amber: #f59e0b;
-            --temp-amber-bg: rgba(245, 158, 11, 0.08);
-            --temp-amber-light: #fcd34d;
+            --gsr-purple: #8b5cf6;
+            --gsr-purple-bg: rgba(139, 92, 246, 0.08);
+            --gsr-purple-light: #c4b5fd;
 
             --success: #10b981;
             --success-bg: rgba(16, 185, 129, 0.08);
@@ -441,8 +441,8 @@
             background: var(--oxy-blue);
         }
 
-        .vital-card.temp::after {
-            background: var(--temp-amber);
+        .vital-card.gsr::after {
+            background: var(--gsr-purple);
         }
 
         .vital-card:hover::after {
@@ -484,9 +484,9 @@
             color: var(--oxy-blue);
         }
 
-        .vital-card.temp .vital-icon {
-            background: var(--temp-amber-bg);
-            color: var(--temp-amber);
+        .vital-card.gsr .vital-icon {
+            background: var(--gsr-purple-bg);
+            color: var(--gsr-purple);
         }
 
         /* Trend Badges */
@@ -1060,7 +1060,8 @@
             </div>
 
             <div class="header-center">
-                <a class="nav-pill active" href="#">Live Monitor</a>
+                <a class="nav-pill active" href="/">Live Monitor</a>
+                <a class="nav-pill" href="/history.html">History</a>
             </div>
 
             <div class="header-right">
@@ -1122,18 +1123,18 @@
                 <div class="vital-range">Optimal: ≥ 95%</div>
             </div>
 
-            <!-- Temperature -->
-            <div class="vital-card temp no-data" id="cardTemp">
+            <!-- GSR Stress Level -->
+            <div class="vital-card gsr no-data" id="cardGsr">
                 <div class="vital-card-top">
-                    <div class="vital-icon"><i data-lucide="thermometer"></i></div>
-                    <div class="vital-trend no-data-trend" id="tempTrend"><span>—</span></div>
+                    <div class="vital-icon"><i data-lucide="zap"></i></div>
+                    <div class="vital-trend no-data-trend" id="gsrTrend"><span>—</span></div>
                 </div>
-                <div class="vital-label">Body Temperature</div>
+                <div class="vital-label">Stress Level (GSR)</div>
                 <div class="vital-value no-data">
-                    <span id="temp">--</span>
-                    <span class="vital-unit">°C</span>
+                    <span id="gsr">--</span>
+                    <span class="vital-unit"></span>
                 </div>
-                <div class="vital-range">Normal: 36.1–37.2°C</div>
+                <div class="vital-range">Lower value = calmer</div>
             </div>
         </div>
 
@@ -1208,7 +1209,7 @@
         let lastRealDataTime = null;
         let ecgPacketCount = 0;
         let isReceivingData = false;
-        let currentVitals = { bpm: null, spo2: null, temp: null };
+        let currentVitals = { bpm: null, spo2: null, gsr: null };
 
         // ========== DOM ==========
         const statusBadge = document.getElementById('statusBadge');
@@ -1276,9 +1277,9 @@
 
         // ========== EVENTS ==========
         socket.on('vitals_update', (data) => {
-            if (data.bpm != null && data.bpm !== 0) currentVitals.bpm = data.bpm;
-            if (data.spo2 != null && data.spo2 !== 0) currentVitals.spo2 = data.spo2;
-            if (data.temp != null && data.temp !== 0) currentVitals.temp = data.temp;
+            if (data.bpm != null) currentVitals.bpm = data.bpm > 0 ? data.bpm : null;
+            if (data.spo2 != null) currentVitals.spo2 = data.spo2 > 0 ? data.spo2 : null;
+            if (data.gsr != null) currentVitals.gsr = data.gsr > 0 ? data.gsr : null;
         });
 
         socket.on('sensor_data', (data) => {
@@ -1288,6 +1289,12 @@
             if (!isReceivingData) { isReceivingData = true; }
             lastRealDataTime = Date.now();
             setDataActive();
+
+            // Update vitals from every sensor_data packet (real-time)
+            if (data.bpm != null) currentVitals.bpm = data.bpm > 0 ? data.bpm : null;
+            if (data.spo2 != null) currentVitals.spo2 = data.spo2 > 0 ? data.spo2 : null;
+            if (data.gsr != null) currentVitals.gsr = data.gsr > 0 ? data.gsr : null;
+
             displayVitals();
             const pv = packetInfoEl.querySelector('.value');
             if (pv) pv.textContent = ecgPacketCount.toLocaleString();
@@ -1334,13 +1341,13 @@
             if (!isReceivingData) return;
             updateVitalCard('bpm', currentVitals.bpm);
             updateVitalCard('spo2', currentVitals.spo2);
-            updateVitalCard('temp', currentVitals.temp);
+            updateVitalCard('gsr', currentVitals.gsr);
         }
 
         function resetVitalsDisplay() {
             updateVitalCard('bpm', null);
             updateVitalCard('spo2', null);
-            updateVitalCard('temp', null);
+            updateVitalCard('gsr', null);
         }
 
         function updateVitalCard(type, value) {
@@ -1363,7 +1370,7 @@
             card.classList.remove('no-data');
             card.classList.add('has-data');
             valueContainer.classList.remove('no-data');
-            valueEl.textContent = type === 'temp' ? value.toFixed(1) : value;
+            valueEl.textContent = value;
 
             let status = { text: 'Normal', cls: 'normal', icon: 'check-circle' };
 
@@ -1375,10 +1382,13 @@
                 if (value >= 95) status = { text: 'Optimal', cls: 'normal', icon: 'check-circle' };
                 else if (value >= 90) status = { text: 'Low', cls: 'elevated', icon: 'trending-down' };
                 else status = { text: 'Critical', cls: 'critical', icon: 'alert-triangle' };
-            } else if (type === 'temp') {
-                if (value > 38.5) status = { text: 'High', cls: 'critical', icon: 'alert-triangle' };
-                else if (value > 37.5) status = { text: 'Fever', cls: 'elevated', icon: 'trending-up' };
-                else if (value < 36) status = { text: 'Low', cls: 'elevated', icon: 'trending-down' };
+            } else if (type === 'gsr') {
+                // GSR: higher value = more sweat = more stress
+                // ADC 0-4095 range. Typical resting: 200-600, stressed: 800+
+                if (value < 500) status = { text: 'Calm', cls: 'normal', icon: 'check-circle' };
+                else if (value < 1000) status = { text: 'Normal', cls: 'normal', icon: 'activity' };
+                else if (value < 2000) status = { text: 'Elevated', cls: 'elevated', icon: 'trending-up' };
+                else status = { text: 'High Stress', cls: 'critical', icon: 'alert-triangle' };
             }
 
             trendEl.className = 'vital-trend ' + status.cls;

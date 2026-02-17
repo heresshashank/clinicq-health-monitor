@@ -1,0 +1,1379 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>History — ClinicQ Health Monitor</title>
+    <meta name="description" content="View historical patient vitals and trends from your ClinicQ Health Monitor.">
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/date-fns@3.6.0"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0"></script>
+
+    <style>
+        /* ============================================
+           DESIGN SYSTEM — Matching ClinicQ Main Site
+           ============================================ */
+        :root {
+            --primary: #0084ff;
+            --primary-hover: #006fdb;
+            --primary-light: #4da6ff;
+            --primary-bg: rgba(0, 132, 255, 0.08);
+            --primary-shadow: rgba(0, 132, 255, 0.2);
+
+            /* Semantic */
+            --success: #10b981;
+            --success-bg: rgba(16, 185, 129, 0.08);
+            --warning: #f59e0b;
+            --warning-bg: rgba(245, 158, 11, 0.08);
+            --danger: #ef4444;
+            --danger-bg: rgba(239, 68, 68, 0.08);
+
+            /* Surfaces */
+            --bg-body-start: #f0f4fb;
+            --bg-body-mid: #f5f3f0;
+            --bg-body-end: #faf8f6;
+            --bg-card: #ffffff;
+            --bg-card-alt: #fcfaf8;
+            --bg-inset: #f3f1ee;
+
+            /* Borders */
+            --border: #e2eaf3;
+            --border-light: #edf2f9;
+
+            /* Text */
+            --text-900: #0f172a;
+            --text-700: #334155;
+            --text-500: #64748b;
+            --text-400: #94a3b8;
+            --text-300: #cbd5e1;
+
+            /* Shadows */
+            --shadow-sm: 0 1px 3px rgba(0, 50, 100, 0.04), 0 1px 2px rgba(0, 50, 100, 0.06);
+            --shadow-md: 0 4px 16px rgba(0, 50, 100, 0.06), 0 2px 4px rgba(0, 50, 100, 0.04);
+
+            /* Radii */
+            --radius-sm: 12px;
+            --radius-md: 16px;
+            --radius-lg: 20px;
+            --radius-xl: 28px;
+        }
+
+        /* ============================================
+           BASE
+           ============================================ */
+        *,
+        *::before,
+        *::after {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(170deg, var(--bg-body-start) 0%, var(--bg-body-mid) 45%, var(--bg-body-end) 100%);
+            min-height: 100vh;
+            color: var(--text-700);
+            overflow-x: hidden;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background:
+                radial-gradient(ellipse at 15% 0%, rgba(0, 132, 255, 0.06) 0%, transparent 50%),
+                radial-gradient(ellipse at 85% 85%, rgba(59, 130, 246, 0.04) 0%, transparent 50%),
+                radial-gradient(ellipse at 50% 30%, rgba(245, 190, 80, 0.04) 0%, transparent 45%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* ============================================
+           HEADER
+           ============================================ */
+        header {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            padding: 0.75rem 1.5rem 0;
+        }
+
+        .header-bar {
+            max-width: 1300px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.55);
+            backdrop-filter: blur(24px) saturate(200%);
+            -webkit-backdrop-filter: blur(24px) saturate(200%);
+            border: 1px solid var(--border-light);
+            border-radius: 60px;
+            padding: 0.5rem 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 20px rgba(0, 50, 100, 0.06);
+        }
+
+        .logo-group {
+            display: flex;
+            align-items: center;
+            gap: 0.625rem;
+        }
+
+        .logo-icon {
+            width: 36px;
+            height: 36px;
+            background: var(--primary);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 800;
+            font-size: 1.125rem;
+            box-shadow: 0 3px 10px var(--primary-shadow);
+        }
+
+        .logo-text {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--text-900);
+            letter-spacing: -0.01em;
+        }
+
+        .logo-text span {
+            color: var(--primary);
+        }
+
+        .header-center {
+            display: flex;
+            gap: 0.25rem;
+        }
+
+        .nav-pill {
+            padding: 0.5rem 1rem;
+            border-radius: 50px;
+            font-size: 0.8125rem;
+            font-weight: 600;
+            color: var(--text-400);
+            text-decoration: none;
+            transition: all 0.2s ease;
+        }
+
+        .nav-pill:hover {
+            color: var(--text-700);
+            background: var(--bg-inset);
+        }
+
+        .nav-pill.active {
+            color: var(--primary);
+            background: var(--primary-bg);
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .live-clock {
+            font-size: 0.75rem;
+            color: var(--text-400);
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 0.3rem;
+        }
+
+        .live-clock svg {
+            width: 13px;
+            height: 13px;
+        }
+
+        /* ============================================
+           MAIN CONTAINER
+           ============================================ */
+        .dashboard-container {
+            max-width: 1300px;
+            margin: 0 auto;
+            padding: 2rem 2rem 3rem;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* ============================================
+           PAGE HERO
+           ============================================ */
+        .page-hero {
+            margin-bottom: 2rem;
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--primary);
+            margin-bottom: 1rem;
+        }
+
+        .hero-badge-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--primary);
+        }
+
+        .page-hero h1 {
+            font-size: 2.25rem;
+            font-weight: 800;
+            color: var(--text-900);
+            letter-spacing: -0.02em;
+            margin-bottom: 0.5rem;
+        }
+
+        .page-hero h1 span.highlight {
+            color: var(--primary);
+        }
+
+        .page-hero p {
+            color: var(--text-400);
+            font-size: 0.9375rem;
+            font-weight: 400;
+            max-width: 500px;
+        }
+
+        /* ============================================
+           FILTER BAR
+           ============================================ */
+        .filter-bar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.75rem;
+            align-items: center;
+            margin-bottom: 2rem;
+            padding: 1.25rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .filter-group {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .filter-group label {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--text-500);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .filter-group input[type="datetime-local"] {
+            font-family: 'Inter', sans-serif;
+            padding: 0.5rem 0.75rem;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            font-size: 0.8125rem;
+            color: var(--text-700);
+            background: var(--bg-card);
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .filter-group input[type="datetime-local"]:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px var(--primary-bg);
+        }
+
+        .preset-btns {
+            display: flex;
+            gap: 0.375rem;
+            margin-left: auto;
+        }
+
+        .preset-btn {
+            padding: 0.4375rem 0.875rem;
+            border: 1px solid var(--border);
+            border-radius: 50px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--text-500);
+            background: var(--bg-card);
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .preset-btn:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+            background: var(--primary-bg);
+        }
+
+        .preset-btn.active {
+            border-color: var(--primary);
+            color: white;
+            background: var(--primary);
+            box-shadow: 0 2px 8px var(--primary-shadow);
+        }
+
+        .load-btn {
+            padding: 0.5rem 1.25rem;
+            border: none;
+            border-radius: 50px;
+            font-size: 0.8125rem;
+            font-weight: 700;
+            color: white;
+            background: var(--primary);
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: 'Inter', sans-serif;
+            box-shadow: 0 2px 8px var(--primary-shadow);
+        }
+
+        .load-btn:hover {
+            background: var(--primary-hover);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px var(--primary-shadow);
+        }
+
+        .load-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* ============================================
+           STATS GRID
+           ============================================ */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1.25rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-lg);
+            padding: 1.75rem;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .stat-card:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-md);
+            border-color: rgba(0, 132, 255, 0.15);
+        }
+
+        /* Decorative circle matching live monitor */
+        .stat-card::after {
+            content: '';
+            position: absolute;
+            top: -20px;
+            right: -20px;
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            opacity: 0.04;
+            transition: opacity 0.3s ease;
+        }
+
+        .stat-card:nth-child(1)::after {
+            background: var(--primary);
+        }
+
+        .stat-card:nth-child(2)::after {
+            background: #ef4444;
+        }
+
+        .stat-card:nth-child(3)::after {
+            background: #3b82f6;
+        }
+
+        .stat-card:nth-child(4)::after {
+            background: #10b981;
+        }
+
+        .stat-card:hover::after {
+            opacity: 0.08;
+        }
+
+        .stat-icon {
+            width: 42px;
+            height: 42px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 1rem;
+        }
+
+        .stat-icon svg {
+            width: 20px;
+            height: 20px;
+        }
+
+        .stat-card:nth-child(1) .stat-icon {
+            background: var(--primary-bg);
+            color: var(--primary);
+        }
+
+        .stat-card:nth-child(2) .stat-icon {
+            background: var(--danger-bg);
+            color: #ef4444;
+        }
+
+        .stat-card:nth-child(3) .stat-icon {
+            background: rgba(59, 130, 246, 0.08);
+            color: #3b82f6;
+        }
+
+        .stat-card:nth-child(4) .stat-icon {
+            background: var(--success-bg);
+            color: #10b981;
+        }
+
+        .stat-label {
+            font-size: 0.6875rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--text-400);
+            margin-bottom: 0.375rem;
+        }
+
+        .stat-value {
+            font-size: 1.75rem;
+            font-weight: 800;
+            color: var(--text-900);
+            letter-spacing: -0.02em;
+        }
+
+        .stat-sub {
+            font-size: 0.75rem;
+            color: var(--text-400);
+            font-weight: 500;
+            margin-top: 0.25rem;
+        }
+
+        /* ============================================
+           CHART SECTIONS
+           ============================================ */
+        .section-header {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .section-header svg {
+            width: 16px;
+            height: 16px;
+            color: var(--primary);
+        }
+
+        .section-title {
+            font-size: 0.6875rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--text-400);
+        }
+
+        .charts-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.25rem;
+            margin-bottom: 2rem;
+        }
+
+        .chart-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-lg);
+            padding: 1.5rem;
+            transition: box-shadow 0.3s;
+        }
+
+        .chart-card:hover {
+            box-shadow: var(--shadow-md);
+        }
+
+        .chart-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .chart-card-title {
+            font-size: 0.9375rem;
+            font-weight: 700;
+            color: var(--text-900);
+        }
+
+        .chart-card-badge {
+            font-size: 0.6875rem;
+            font-weight: 600;
+            padding: 0.25rem 0.625rem;
+            border-radius: 50px;
+            background: var(--bg-inset);
+            color: var(--text-400);
+        }
+
+        .chart-wrapper {
+            height: 250px;
+            position: relative;
+        }
+
+        /* ============================================
+           DATA TABLE
+           ============================================ */
+        .table-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .table-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1.25rem 1.5rem;
+            border-bottom: 1px solid var(--border-light);
+        }
+
+        .table-title {
+            font-size: 0.9375rem;
+            font-weight: 700;
+            color: var(--text-900);
+        }
+
+        .table-count {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--text-400);
+            padding: 0.25rem 0.75rem;
+            background: var(--bg-inset);
+            border-radius: 50px;
+        }
+
+        .table-scroll {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .table-scroll::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .table-scroll::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .table-scroll::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 3px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        thead {
+            position: sticky;
+            top: 0;
+            z-index: 1;
+        }
+
+        th {
+            padding: 0.75rem 1.5rem;
+            text-align: left;
+            font-size: 0.6875rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--text-400);
+            background: var(--bg-inset);
+            border-bottom: 1px solid var(--border-light);
+        }
+
+        td {
+            padding: 0.75rem 1.5rem;
+            font-size: 0.8125rem;
+            color: var(--text-700);
+            border-bottom: 1px solid var(--border-light);
+        }
+
+        tr:hover td {
+            background: rgba(0, 132, 255, 0.02);
+        }
+
+        td .badge {
+            display: inline-flex;
+            padding: 0.1875rem 0.5rem;
+            border-radius: 50px;
+            font-size: 0.6875rem;
+            font-weight: 600;
+        }
+
+        td .badge.normal {
+            background: var(--success-bg);
+            color: #059669;
+        }
+
+        td .badge.elevated {
+            background: var(--warning-bg);
+            color: #b45309;
+        }
+
+        td .badge.critical {
+            background: var(--danger-bg);
+            color: #dc2626;
+        }
+
+        /* ============================================
+           EMPTY STATE
+           ============================================ */
+        .empty-state {
+            text-align: center;
+            padding: 4rem 2rem;
+            color: var(--text-400);
+        }
+
+        .empty-icon {
+            width: 64px;
+            height: 64px;
+            border-radius: 18px;
+            background: var(--primary-bg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 1rem;
+            color: var(--primary);
+        }
+
+        .empty-icon svg {
+            width: 28px;
+            height: 28px;
+        }
+
+        .empty-state h3 {
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--text-900);
+            margin-bottom: 0.375rem;
+        }
+
+        .empty-state p {
+            font-size: 0.8125rem;
+            max-width: 320px;
+            margin: 0 auto;
+        }
+
+        /* ============================================
+           LOADING STATE
+           ============================================ */
+        .loading-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(240, 244, 251, 0.8);
+            backdrop-filter: blur(4px);
+            z-index: 200;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .loading-overlay.visible {
+            display: flex;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid var(--border);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* ============================================
+           FOOTER
+           ============================================ */
+        footer {
+            text-align: center;
+            padding: 1.5rem 2rem;
+            color: var(--text-300);
+            font-size: 0.75rem;
+            margin-top: 1rem;
+        }
+
+        footer a {
+            color: var(--primary);
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        /* ============================================
+           DECORATIVE BACKGROUND
+           ============================================ */
+        .bg-decor {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 0;
+            overflow: hidden;
+        }
+
+        .bg-decor .blob {
+            position: absolute;
+            border-radius: 50%;
+        }
+
+        .bg-decor .blob-1 {
+            width: 350px;
+            height: 350px;
+            top: -80px;
+            right: -60px;
+            background: radial-gradient(circle, rgba(0, 132, 255, 0.05) 0%, transparent 70%);
+            animation: float-slow 10s ease-in-out infinite;
+        }
+
+        .bg-decor .blob-2 {
+            width: 260px;
+            height: 260px;
+            bottom: 10%;
+            left: -40px;
+            background: radial-gradient(circle, rgba(210, 170, 120, 0.05) 0%, transparent 70%);
+            animation: float-slow 13s ease-in-out infinite 2s;
+        }
+
+        @keyframes float-slow {
+
+            0%,
+            100% {
+                transform: translateY(0px);
+            }
+
+            50% {
+                transform: translateY(-14px);
+            }
+        }
+
+        /* ============================================
+           ANIMATIONS
+           ============================================ */
+        @keyframes fadeSlideUp {
+            from {
+                opacity: 0;
+                transform: translateY(24px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .page-hero {
+            animation: fadeSlideUp 0.6s ease both;
+        }
+
+        .filter-bar {
+            animation: fadeSlideUp 0.5s 0.1s ease both;
+        }
+
+        .stat-card {
+            animation: fadeSlideUp 0.5s cubic-bezier(0.4, 0, 0.2, 1) both;
+        }
+
+        .stat-card:nth-child(1) {
+            animation-delay: 0.15s;
+        }
+
+        .stat-card:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .stat-card:nth-child(3) {
+            animation-delay: 0.25s;
+        }
+
+        .stat-card:nth-child(4) {
+            animation-delay: 0.3s;
+        }
+
+        .chart-card {
+            animation: fadeSlideUp 0.5s 0.35s ease both;
+        }
+
+        .table-card {
+            animation: fadeSlideUp 0.5s 0.45s ease both;
+        }
+
+        /* ============================================
+           RESPONSIVE
+           ============================================ */
+        @media (max-width: 1024px) {
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .charts-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .stats-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+
+            .dashboard-container {
+                padding: 1.5rem 1rem 2rem;
+            }
+
+            .header-bar {
+                border-radius: 16px;
+                flex-direction: column;
+                gap: 0.5rem;
+                padding: 0.75rem 1rem;
+            }
+
+            .page-hero h1 {
+                font-size: 1.625rem;
+            }
+
+            .filter-bar {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .preset-btns {
+                margin-left: 0;
+                flex-wrap: wrap;
+            }
+
+            .stat-value {
+                font-size: 1.375rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .page-hero h1 {
+                font-size: 1.375rem;
+            }
+
+            .chart-wrapper {
+                height: 200px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Background Decoration -->
+    <div class="bg-decor">
+        <div class="blob blob-1"></div>
+        <div class="blob blob-2"></div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="spinner"></div>
+    </div>
+
+    <!-- Header -->
+    <header>
+        <div class="header-bar">
+            <div class="logo-group">
+                <div class="logo-icon">C</div>
+                <span class="logo-text">Clinic<span>Q</span></span>
+            </div>
+
+            <div class="header-center">
+                <a class="nav-pill" href="/">Live Monitor</a>
+                <a class="nav-pill active" href="/history.html">History</a>
+            </div>
+
+            <div class="header-right">
+                <div class="live-clock">
+                    <i data-lucide="clock"></i>
+                    <span id="timeDisplay">--:--</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="dashboard-container">
+        <!-- Hero -->
+        <div class="page-hero">
+            <div class="hero-badge">
+                <div class="hero-badge-dot"></div>
+                Historical Data
+            </div>
+            <h1>Vitals <span class="highlight">History</span></h1>
+            <p>Explore past health recordings, trends, and summary statistics.</p>
+        </div>
+
+        <!-- Filter Bar -->
+        <div class="filter-bar">
+            <div class="filter-group">
+                <label>From</label>
+                <input type="datetime-local" id="dateFrom">
+            </div>
+            <div class="filter-group">
+                <label>To</label>
+                <input type="datetime-local" id="dateTo">
+            </div>
+            <button class="load-btn" id="loadBtn" onclick="loadData()">
+                Load Data
+            </button>
+            <div class="preset-btns">
+                <button class="preset-btn" onclick="setPreset('1h')">1h</button>
+                <button class="preset-btn" onclick="setPreset('6h')">6h</button>
+                <button class="preset-btn" onclick="setPreset('24h')">24h</button>
+                <button class="preset-btn" onclick="setPreset('7d')">7d</button>
+                <button class="preset-btn" onclick="setPreset('30d')">30d</button>
+                <button class="preset-btn active" onclick="setPreset('all')">All</button>
+            </div>
+        </div>
+
+        <!-- Stats Grid -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-icon"><i data-lucide="database"></i></div>
+                <div class="stat-label">Total Records</div>
+                <div class="stat-value" id="statCount">--</div>
+                <div class="stat-sub" id="statDuration">No data loaded</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon"><i data-lucide="heart"></i></div>
+                <div class="stat-label">Heart Rate (Avg)</div>
+                <div class="stat-value" id="statBpm">--</div>
+                <div class="stat-sub" id="statBpmRange">Min – Max</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon"><i data-lucide="droplets"></i></div>
+                <div class="stat-label">SpO2 (Avg)</div>
+                <div class="stat-value" id="statSpo2">--</div>
+                <div class="stat-sub" id="statSpo2Range">Min – Max</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon"><i data-lucide="activity"></i></div>
+                <div class="stat-label">Monitoring Duration</div>
+                <div class="stat-value" id="statTime">--</div>
+                <div class="stat-sub" id="statTimeRange">No sessions</div>
+            </div>
+        </div>
+
+        <!-- Charts -->
+        <div class="section-header">
+            <i data-lucide="trending-up"></i>
+            <span class="section-title">Trends Over Time</span>
+        </div>
+
+        <div class="charts-grid">
+            <div class="chart-card">
+                <div class="chart-card-header">
+                    <span class="chart-card-title">Heart Rate</span>
+                    <span class="chart-card-badge">BPM</span>
+                </div>
+                <div class="chart-wrapper">
+                    <canvas id="bpmChart"></canvas>
+                </div>
+            </div>
+            <div class="chart-card">
+                <div class="chart-card-header">
+                    <span class="chart-card-title">Blood Oxygen</span>
+                    <span class="chart-card-badge">SpO2 %</span>
+                </div>
+                <div class="chart-wrapper">
+                    <canvas id="spo2Chart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Data Table -->
+        <div class="section-header">
+            <i data-lucide="list"></i>
+            <span class="section-title">Raw Records</span>
+        </div>
+
+        <div class="table-card" id="tableCard">
+            <div class="table-header">
+                <span class="table-title">Vitals Log</span>
+                <span class="table-count" id="tableCount">0 records</span>
+            </div>
+            <div class="table-scroll" id="tableScroll">
+                <div class="empty-state" id="emptyState">
+                    <div class="empty-icon"><i data-lucide="inbox"></i></div>
+                    <h3>No Data Yet</h3>
+                    <p>Select a time range and click "Load Data" to view historical records.</p>
+                </div>
+                <table id="dataTable" style="display: none;">
+                    <thead>
+                        <tr>
+                            <th>Timestamp</th>
+                            <th>Heart Rate</th>
+                            <th>SpO2</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <p>ClinicQ Health Monitor © 2026 · Historical Data Viewer</p>
+    </footer>
+
+    <script>
+        // ========== INIT ==========
+        lucide.createIcons();
+
+        function updateClock() {
+            const now = new Date();
+            document.getElementById('timeDisplay').textContent = now.toLocaleTimeString('en-US', {
+                hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true
+            });
+        }
+        updateClock();
+        setInterval(updateClock, 1000);
+
+        // ========== CHARTS ==========
+        const chartDefaults = {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: { duration: 600, easing: 'easeOutQuart' },
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                    titleFont: { family: 'Inter', size: 11, weight: '600' },
+                    bodyFont: { family: 'Inter', size: 12 },
+                    padding: 10,
+                    cornerRadius: 8,
+                    displayColors: false
+                }
+            },
+            scales: {
+                x: {
+                    type: 'time',
+                    time: { tooltipFormat: 'MMM d, HH:mm:ss' },
+                    grid: { color: 'rgba(0,0,0,0.03)' },
+                    ticks: { color: '#94a3b8', font: { size: 10, family: 'Inter' }, maxTicksLimit: 8 }
+                },
+                y: {
+                    grid: { color: 'rgba(0,0,0,0.04)' },
+                    ticks: { color: '#94a3b8', font: { size: 10, family: 'Inter' } }
+                }
+            },
+            interaction: { intersect: false, mode: 'index' }
+        };
+
+        const bpmChart = new Chart(document.getElementById('bpmChart').getContext('2d'), {
+            type: 'line',
+            data: {
+                datasets: [{
+                    label: 'Heart Rate (BPM)',
+                    borderColor: '#ef4444',
+                    backgroundColor: 'rgba(239, 68, 68, 0.08)',
+                    borderWidth: 2,
+                    pointRadius: 0,
+                    pointHoverRadius: 4,
+                    pointHoverBackgroundColor: '#ef4444',
+                    tension: 0.3,
+                    fill: true,
+                    data: []
+                }]
+            },
+            options: {
+                ...chartDefaults,
+                scales: {
+                    ...chartDefaults.scales,
+                    y: {
+                        ...chartDefaults.scales.y,
+                        suggestedMin: 50,
+                        suggestedMax: 120
+                    }
+                }
+            }
+        });
+
+        const spo2Chart = new Chart(document.getElementById('spo2Chart').getContext('2d'), {
+            type: 'line',
+            data: {
+                datasets: [{
+                    label: 'SpO2 (%)',
+                    borderColor: '#3b82f6',
+                    backgroundColor: 'rgba(59, 130, 246, 0.08)',
+                    borderWidth: 2,
+                    pointRadius: 0,
+                    pointHoverRadius: 4,
+                    pointHoverBackgroundColor: '#3b82f6',
+                    tension: 0.3,
+                    fill: true,
+                    data: []
+                }]
+            },
+            options: {
+                ...chartDefaults,
+                scales: {
+                    ...chartDefaults.scales,
+                    y: {
+                        ...chartDefaults.scales.y,
+                        suggestedMin: 85,
+                        suggestedMax: 100
+                    }
+                }
+            }
+        });
+
+        // ========== FILTER / PRESETS ==========
+        let currentPreset = 'all';
+
+        function setPreset(preset) {
+            currentPreset = preset;
+            document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+            event.target.classList.add('active');
+
+            const now = new Date();
+            let from;
+
+            if (preset === 'all') {
+                document.getElementById('dateFrom').value = '';
+                document.getElementById('dateTo').value = '';
+                loadData();
+                return;
+            }
+
+            const hours = { '1h': 1, '6h': 6, '24h': 24, '7d': 168, '30d': 720 };
+            from = new Date(now.getTime() - hours[preset] * 60 * 60 * 1000);
+
+            document.getElementById('dateFrom').value = toLocalISO(from);
+            document.getElementById('dateTo').value = toLocalISO(now);
+            loadData();
+        }
+
+        function toLocalISO(date) {
+            const offset = date.getTimezoneOffset();
+            const local = new Date(date.getTime() - offset * 60000);
+            return local.toISOString().slice(0, 16);
+        }
+
+        // ========== DATA LOADING ==========
+        async function loadData() {
+            const btn = document.getElementById('loadBtn');
+            const overlay = document.getElementById('loadingOverlay');
+            btn.disabled = true;
+            btn.textContent = 'Loading...';
+            overlay.classList.add('visible');
+
+            try {
+                const fromVal = document.getElementById('dateFrom').value;
+                const toVal = document.getElementById('dateTo').value;
+
+                const params = new URLSearchParams();
+                if (fromVal) params.set('from', new Date(fromVal).toISOString());
+                if (toVal) params.set('to', new Date(toVal).toISOString());
+                params.set('limit', '2000');
+
+                // Fetch vitals and stats in parallel
+                const [vitalsRes, statsRes] = await Promise.all([
+                    fetch(`/api/vitals?${params}`).then(r => r.json()),
+                    fetch(`/api/stats?${params}`).then(r => r.json())
+                ]);
+
+                if (vitalsRes.success) {
+                    renderCharts(vitalsRes.data);
+                    renderTable(vitalsRes.data);
+                }
+
+                if (statsRes.success) {
+                    renderStats(statsRes.data);
+                }
+            } catch (err) {
+                console.error('Failed to load data:', err);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Load Data';
+                overlay.classList.remove('visible');
+            }
+        }
+
+        // ========== RENDERING ==========
+        function renderStats(stats) {
+            if (!stats || stats.count === 0) {
+                document.getElementById('statCount').textContent = '0';
+                document.getElementById('statDuration').textContent = 'No data in range';
+                document.getElementById('statBpm').textContent = '--';
+                document.getElementById('statBpmRange').textContent = 'No data';
+                document.getElementById('statSpo2').textContent = '--';
+                document.getElementById('statSpo2Range').textContent = 'No data';
+                document.getElementById('statTime').textContent = '--';
+                document.getElementById('statTimeRange').textContent = 'No sessions';
+                return;
+            }
+
+            document.getElementById('statCount').textContent = stats.count.toLocaleString();
+            document.getElementById('statDuration').textContent =
+                `${new Date(stats.firstRecord).toLocaleDateString()} — ${new Date(stats.lastRecord).toLocaleDateString()}`;
+
+            if (stats.bpm) {
+                document.getElementById('statBpm').textContent = stats.bpm.avg;
+                document.getElementById('statBpmRange').textContent =
+                    `Min: ${stats.bpm.min} · Max: ${stats.bpm.max} BPM`;
+            }
+
+            if (stats.spo2) {
+                document.getElementById('statSpo2').textContent = stats.spo2.avg + '%';
+                document.getElementById('statSpo2Range').textContent =
+                    `Min: ${stats.spo2.min}% · Max: ${stats.spo2.max}%`;
+            }
+
+            if (stats.duration) {
+                document.getElementById('statTime').textContent = stats.duration.text;
+                document.getElementById('statTimeRange').textContent =
+                    `${new Date(stats.firstRecord).toLocaleTimeString()} — ${new Date(stats.lastRecord).toLocaleTimeString()}`;
+            }
+        }
+
+        function renderCharts(data) {
+            if (!data || data.length === 0) {
+                bpmChart.data.datasets[0].data = [];
+                spo2Chart.data.datasets[0].data = [];
+                bpmChart.update();
+                spo2Chart.update();
+                return;
+            }
+
+            // Data comes sorted newest-first, we want oldest-first for charts
+            const sorted = [...data].reverse();
+
+            // Downsample if too many points (keep charts responsive)
+            const maxPoints = 500;
+            const step = sorted.length > maxPoints ? Math.ceil(sorted.length / maxPoints) : 1;
+            const sampled = sorted.filter((_, i) => i % step === 0);
+
+            bpmChart.data.datasets[0].data = sampled.map(d => ({
+                x: new Date(d.timestamp),
+                y: d.bpm
+            }));
+
+            spo2Chart.data.datasets[0].data = sampled
+                .filter(d => d.spo2 > 0)
+                .map(d => ({
+                    x: new Date(d.timestamp),
+                    y: d.spo2
+                }));
+
+            bpmChart.update();
+            spo2Chart.update();
+        }
+
+        function renderTable(data) {
+            const tbody = document.getElementById('tableBody');
+            const table = document.getElementById('dataTable');
+            const empty = document.getElementById('emptyState');
+            const countEl = document.getElementById('tableCount');
+
+            if (!data || data.length === 0) {
+                table.style.display = 'none';
+                empty.style.display = 'block';
+                countEl.textContent = '0 records';
+                return;
+            }
+
+            table.style.display = 'table';
+            empty.style.display = 'none';
+            countEl.textContent = `${data.length.toLocaleString()} records`;
+
+            // Only render first 200 rows for performance
+            const display = data.slice(0, 200);
+
+            tbody.innerHTML = display.map(d => {
+                const time = new Date(d.timestamp).toLocaleString('en-US', {
+                    month: 'short', day: 'numeric',
+                    hour: '2-digit', minute: '2-digit', second: '2-digit',
+                    hour12: true
+                });
+
+                const bpmStatus = getBpmStatus(d.bpm);
+                const spo2Display = d.spo2 > 0 ? d.spo2 + '%' : '--';
+
+                return `<tr>
+                    <td>${time}</td>
+                    <td>${d.bpm} BPM</td>
+                    <td>${spo2Display}</td>
+                    <td><span class="badge ${bpmStatus.cls}">${bpmStatus.text}</span></td>
+                </tr>`;
+            }).join('');
+        }
+
+        function getBpmStatus(bpm) {
+            if (bpm > 120 || bpm < 50) return { text: 'Critical', cls: 'critical' };
+            if (bpm > 100 || bpm < 60) return { text: 'Elevated', cls: 'elevated' };
+            return { text: 'Normal', cls: 'normal' };
+        }
+
+        // ========== AUTO-LOAD ON PAGE OPEN ==========
+        (function () {
+            // Default: load ALL data
+            document.getElementById('dateFrom').value = '';
+            document.getElementById('dateTo').value = '';
+            loadData();
+        })();
+
+        console.log('📊 ClinicQ History Dashboard initialized');
+    </script>
+</body>
+
+</html>
